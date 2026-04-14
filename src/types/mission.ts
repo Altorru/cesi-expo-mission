@@ -5,7 +5,7 @@ export interface Mission {
   title: string;
   description: string | null;
   status: MissionStatus | string | null;
-  author_id: string | null;
+  author: string | null;
   assigned_to: string | null;
   created_at: string;
   updated_at: string;

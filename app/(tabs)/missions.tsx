@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   View,
   Text,
@@ -6,10 +7,19 @@ import {
   RefreshControl,
   StyleSheet,
   useWindowDimensions,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useMissions } from '@/hooks/useMissions';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import type { Mission, MissionStatus } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 
@@ -55,10 +65,119 @@ function MissionCard({ item }: { item: Mission }) {
       <View style={styles.cardFooter}>
         <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
         <Text style={styles.cardMeta}>
-          {item.author_id ?? '—'}
+          {item.author ?? '—'}
         </Text>
       </View>
     </View>
+  );
+}
+
+// ─── Formulaire de création (modal) ──────────────────────────────────────────
+
+const DRAFT_KEY = 'draft_create_mission';
+const DRAFT_INITIAL = { title: '', description: '' };
+
+function CreateMissionModal({
+  visible,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { user } = useAuth();
+  const { values, setField, clearDraft, isRestored } = useFormPersistence(
+    DRAFT_KEY,
+    DRAFT_INITIAL,
+  );
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!values.title.trim()) {
+      setError('Le titre est requis.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    const { error: sbError } = await supabase.from('courses').insert({
+      title: values.title.trim(),
+      description: values.description.trim() || null,
+      author: user?.id ?? null,
+    });
+    setSubmitting(false);
+    if (sbError) {
+      setError(sbError.message);
+      return;
+    }
+    await clearDraft(); // 4c — effacer après soumission
+    onCreated();
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={modal.safe}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={modal.container} keyboardShouldPersistTaps="handled">
+            {/* En-tête */}
+            <View style={modal.header}>
+              <Text style={modal.title}>Nouvelle mission</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Indicateur brouillon */}
+            {isRestored && (values.title || values.description) ? (
+              <View style={modal.draftBanner}>
+                <MaterialIcons name="history" size={14} color={colors.secondary} />
+                <Text style={modal.draftText}>Brouillon restauré</Text>
+              </View>
+            ) : null}
+
+            <Text style={modal.label}>Titre *</Text>
+            <TextInput
+              style={modal.input}
+              placeholder="Titre de la mission"
+              placeholderTextColor={colors.text + '66'}
+              value={values.title}
+              onChangeText={(v) => setField('title', v)}
+            />
+
+            <Text style={modal.label}>Description</Text>
+            <TextInput
+              style={[modal.input, modal.inputMulti]}
+              placeholder="Décrivez la mission..."
+              placeholderTextColor={colors.text + '66'}
+              value={values.description}
+              onChangeText={(v) => setField('description', v)}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            {error ? <Text style={modal.error}>{error}</Text> : null}
+
+            <TouchableOpacity
+              style={[modal.submitBtn, submitting && modal.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={modal.submitText}>Créer la mission</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -73,6 +192,7 @@ export default function MissionsScreen() {
 
   const { missions, isLoading, error, refetch } = useMissions();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [showCreate, setShowCreate] = React.useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -102,7 +222,14 @@ export default function MissionsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Text style={styles.title}>Missions</Text>
+      {/* En-tête avec titre + bouton + */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Missions</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+          <MaterialIcons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         // 6c — changer la key force le re-mount quand numColumns change
         key={`missions-cols-${numColumns}`}
@@ -132,12 +259,15 @@ export default function MissionsScreen() {
           />
         }
       />
+
+      <CreateMissionModal
+        visible={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={refetch}
+      />
     </SafeAreaView>
   );
 }
-
-// On importe React explicitement pour useState
-import React from 'react';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -150,9 +280,22 @@ const styles = StyleSheet.create({
     fontSize: font.size.xl,
     fontWeight: font.weight.bold,
     color: colors.primary,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
+  },
+  addBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     paddingHorizontal: spacing.md,
@@ -234,5 +377,81 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
+  },
+});
+
+// ─── Styles modal ─────────────────────────────────────────────────────────────
+
+const modal = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  title: {
+    fontSize: font.size.lg,
+    fontWeight: font.weight.bold,
+    color: colors.primary,
+  },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  draftText: {
+    fontSize: font.size.xs,
+    color: colors.secondary,
+    fontWeight: font.weight.medium,
+  },
+  label: {
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
+    color: colors.text,
+    marginBottom: -spacing.xs,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.secondary + '55',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    fontSize: font.size.md,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  inputMulti: {
+    height: 110,
+  },
+  error: {
+    fontSize: font.size.sm,
+    color: '#c0392b',
+    textAlign: 'center',
+  },
+  submitBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitText: {
+    color: '#fff',
+    fontSize: font.size.md,
+    fontWeight: font.weight.bold,
   },
 });
