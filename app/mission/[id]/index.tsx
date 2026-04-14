@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router'; // 7a
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
@@ -25,7 +25,7 @@ const PRIORITY_META: Record<PriorityLevel, { label: string; color: string }> = {
   Normal:   { label: 'Normal',   color: '#27ae60' },
 };
 
-// ─── Modal de confirmation d'attribution (7d) ─────────────────────────────────
+// ─── Modal de confirmation d'attribution ──────────────────────────────────────
 
 type AssignState = 'confirm' | 'loading' | 'success' | 'error';
 
@@ -43,7 +43,6 @@ function AssignModal({
   const [state, setState] = React.useState<AssignState>('confirm');
   const [errorMsg, setErrorMsg] = React.useState('');
 
-  // Reset quand le modal s'ouvre
   React.useEffect(() => {
     if (visible) { setState('confirm'); setErrorMsg(''); }
   }, [visible]);
@@ -115,7 +114,6 @@ function AssignModal({
 // ─── Écran détail ─────────────────────────────────────────────────────────────
 
 export default function MissionDetailScreen() {
-  // 7a — récupération de l'id depuis la route dynamique
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -123,12 +121,17 @@ export default function MissionDetailScreen() {
 
   const [modalVisible, setModalVisible] = React.useState(false);
 
-  // 7c — déterminer l'état d'attribution
+  // Refetch explicite au retour depuis modify (en complément du Realtime)
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+
   const isAssignedToMe = mission?.in_charge === user?.id;
   const isAssignedToOther = !!mission?.in_charge && !isAssignedToMe;
   const isUnassigned = !mission?.in_charge;
 
-  // 7b — UPDATE in_charge dans Supabase
   const handleAssign = async () => {
     const newAssignee = isAssignedToMe ? null : user?.id ?? null;
     const { error } = await supabase
@@ -139,12 +142,11 @@ export default function MissionDetailScreen() {
     await refetch();
   };
 
-  // Label du bouton selon l'état (7c)
   const assignLabel = isAssignedToMe
     ? 'Se désassigner'
     : isUnassigned
     ? "S'attribuer la mission"
-    : 'Déjà attribuée à quelqu\'un';
+    : "Déjà attribuée à quelqu'un";
 
   if (isLoading) {
     return (
@@ -172,11 +174,30 @@ export default function MissionDetailScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle} numberOfLines={1}>Détail</Text>
-        <View style={{ width: 24 }} />
+
+        {/* Actions : modifier + supprimer */}
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push(`/mission/${id}/modify`)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="edit" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push(`/mission/${id}/delete`)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="delete-outline" size={22} color="#c0392b" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -217,12 +238,10 @@ export default function MissionDetailScreen() {
           <MetaRow
             icon="assignment-ind"
             label="Assignée à"
-            value={
-              isAssignedToMe
-                ? 'Moi'
-                : mission.in_charge ?? 'Non assignée'
+            value={isAssignedToMe ? 'Moi' : mission.in_charge ?? 'Non assignée'}
+            valueColor={
+              isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : colors.text + '88'
             }
-            valueColor={isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : colors.text + '88'}
           />
           {mission.deadline ? (
             <MetaRow
@@ -231,10 +250,14 @@ export default function MissionDetailScreen() {
               value={new Date(mission.deadline).toLocaleDateString('fr-FR')}
             />
           ) : null}
-          <MetaRow icon="schedule" label="Créée le" value={new Date(mission.created_at).toLocaleDateString('fr-FR')} />
+          <MetaRow
+            icon="schedule"
+            label="Créée le"
+            value={new Date(mission.created_at).toLocaleDateString('fr-FR')}
+          />
         </View>
 
-        {/* 7c — Bouton d'attribution conditionnel */}
+        {/* Bouton d'attribution conditionnel */}
         <TouchableOpacity
           style={[
             styles.assignBtn,
@@ -253,7 +276,7 @@ export default function MissionDetailScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 7d — Modal confirmation */}
+      {/* Modal confirmation attribution */}
       <AssignModal
         visible={modalVisible}
         label={assignLabel}
@@ -301,6 +324,11 @@ const styles = StyleSheet.create({
     fontWeight: font.weight.bold,
     color: colors.primary,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   content: {
     padding: spacing.lg,
     gap: spacing.lg,
@@ -310,54 +338,41 @@ const styles = StyleSheet.create({
     fontWeight: font.weight.bold,
     color: colors.text,
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  badgeText: {
-    fontSize: font.size.sm,
-    fontWeight: font.weight.medium,
-  },
   tagsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primary + '18',
-    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
   },
   categoryText: {
-    fontSize: font.size.sm,
+    fontSize: font.size.xs,
     color: colors.primary,
     fontWeight: font.weight.medium,
   },
   priorityChip: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
   },
   priorityText: {
-    fontSize: font.size.sm,
-    fontWeight: font.weight.medium,
+    fontSize: font.size.xs,
+    fontWeight: font.weight.bold,
   },
   section: { gap: spacing.xs },
   sectionLabel: {
-    fontSize: font.size.xs,
-    fontWeight: font.weight.bold,
-    color: colors.secondary,
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
+    color: colors.text + '88',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   sectionText: {
     fontSize: font.size.md,
@@ -367,13 +382,8 @@ const styles = StyleSheet.create({
   metaCard: {
     backgroundColor: '#fff',
     borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   metaRow: {
     flexDirection: 'row',

@@ -52,7 +52,10 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)/register" options={{ headerShown: false }} />
-      <Stack.Screen name="mission/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="mission/[id]/index" options={{ headerShown: false }} />
+      <Stack.Screen name="mission/[id]/modify" options={{ headerShown: false }} />
+      <Stack.Screen name="mission/[id]/delete" options={{ headerShown: false }} />
+      <Stack.Screen name="mission/[id]/create" options={{ headerShown: false }} />
     </Stack>
   );
 }

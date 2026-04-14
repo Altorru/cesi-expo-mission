@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Mission } from '@/types/mission';
 
@@ -11,6 +11,7 @@ export function useMissions() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelName = useRef(`courses_realtime_${Math.random().toString(36).slice(2)}`);
 
   const fetchMissions = useCallback(async () => {
     setError(null);
@@ -30,9 +31,8 @@ export function useMissions() {
   useEffect(() => {
     fetchMissions();
 
-    // 3b — Abonnement Realtime : rafraîchissement automatique à chaque mutation
     const channel = supabase
-      .channel('courses_realtime')
+      .channel(channelName.current)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'courses' },
@@ -54,6 +54,7 @@ export function useMyMissions(userId: string | undefined) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelName = useRef(`missions_user_${Math.random().toString(36).slice(2)}`);
 
   const fetchMyMissions = useCallback(async () => {
     if (!userId) {
@@ -81,7 +82,7 @@ export function useMyMissions(userId: string | undefined) {
 
     // 3b — Realtime filtré sur les missions de cet utilisateur
     const channel = supabase
-      .channel(`missions_user_${userId}`)
+      .channel(channelName.current)
       .on(
         'postgres_changes',
         {
@@ -132,26 +133,39 @@ export function useMission(missionId: string | undefined) {
 
   useEffect(() => {
     fetchMission();
-
-    // 3b — Realtime sur cette mission précise
-    const channel = supabase
-      .channel(`mission_${missionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'courses',
-          filter: missionId ? `id=eq.${missionId}` : undefined,
-        },
-        () => { fetchMission(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchMission, missionId]);
+  }, [fetchMission]);
 
   return { mission, isLoading, error, refetch: fetchMission };
+}
+
+// ─── Hook : mission unique sans Realtime (pour modify / delete) ───────────────
+// Évite le conflit de channel name quand index.tsx est déjà monté dans la stack.
+
+export function useMissionOnce(missionId: string | undefined) {
+  const [mission, setMission] = useState<Mission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!missionId) {
+      setMission(null);
+      setIsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select(MISSIONS_SELECT)
+        .eq('id', missionId)
+        .single<Mission>();
+      if (cancelled) return;
+      if (error) setError(error.message);
+      else setMission(data);
+      setIsLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [missionId]);
+
+  return { mission, isLoading, error };
 }
