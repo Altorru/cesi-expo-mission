@@ -14,31 +14,16 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import type { MissionStatus } from '@/types/mission';
+import type { PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 
-// ─── Badge statut (réutilisé localement) ─────────────────────────────────────
+// ─── Badge priorité ────────────────────────────────────────────────────────────
 
-const STATUS_META: Record<MissionStatus, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
-  open:        { label: 'Ouverte',  color: '#2980b9', icon: 'radio-button-unchecked' },
-  in_progress: { label: 'En cours', color: '#e67e22', icon: 'timelapse' },
-  done:        { label: 'Terminée', color: '#27ae60', icon: 'check-circle' },
-  cancelled:   { label: 'Annulée',  color: '#c0392b', icon: 'cancel' },
+const PRIORITY_META: Record<PriorityLevel, { label: string; color: string }> = {
+  Critique: { label: 'Critique', color: '#c0392b' },
+  Urgent:   { label: 'Urgent',   color: '#e67e22' },
+  Normal:   { label: 'Normal',   color: '#27ae60' },
 };
-
-function StatusBadge({ status }: { status: string | null }) {
-  const meta = STATUS_META[status as MissionStatus] ?? {
-    label: status || 'Inconnu',
-    color: '#888888',
-    icon: 'help-outline' as React.ComponentProps<typeof MaterialIcons>['name'],
-  };
-  return (
-    <View style={[styles.badge, { backgroundColor: meta.color + '22' }]}>
-      <MaterialIcons name={meta.icon} size={14} color={meta.color} />
-      <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
-    </View>
-  );
-}
 
 // ─── Modal de confirmation d'attribution (7d) ─────────────────────────────────
 
@@ -195,9 +180,28 @@ export default function MissionDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Titre + statut */}
+        {/* Titre */}
         <Text style={styles.title}>{mission.title}</Text>
-        <StatusBadge status={mission.status} />
+
+        {/* Catégorie + Priorité */}
+        {(mission.category || mission.priority) ? (
+          <View style={styles.tagsRow}>
+            {mission.category ? (
+              <View style={styles.categoryChip}>
+                <MaterialIcons name="label-outline" size={13} color={colors.primary} />
+                <Text style={styles.categoryText}>{mission.category}</Text>
+              </View>
+            ) : null}
+            {mission.priority ? (() => {
+              const pm = PRIORITY_META[mission.priority as PriorityLevel] ?? { label: mission.priority, color: '#888' };
+              return (
+                <View style={[styles.priorityChip, { backgroundColor: pm.color + '22' }]}>
+                  <Text style={[styles.priorityText, { color: pm.color }]}>{pm.label}</Text>
+                </View>
+              );
+            })() : null}
+          </View>
+        ) : null}
 
         {/* Description */}
         {mission.description ? (
@@ -220,6 +224,13 @@ export default function MissionDetailScreen() {
             }
             valueColor={isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : colors.text + '88'}
           />
+          {mission.deadline ? (
+            <MetaRow
+              icon="event"
+              label="Deadline"
+              value={new Date(mission.deadline).toLocaleDateString('fr-FR')}
+            />
+          ) : null}
           <MetaRow icon="schedule" label="Créée le" value={new Date(mission.created_at).toLocaleDateString('fr-FR')} />
         </View>
 
@@ -309,6 +320,34 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   badgeText: {
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary + '18',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+  },
+  categoryText: {
+    fontSize: font.size.sm,
+    color: colors.primary,
+    fontWeight: font.weight.medium,
+  },
+  priorityChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+  },
+  priorityText: {
     fontSize: font.size.sm,
     fontWeight: font.weight.medium,
   },

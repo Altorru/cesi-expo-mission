@@ -15,6 +15,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,26 +23,20 @@ import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import type { Mission, MissionStatus } from '@/types/mission';
+import type { Mission, PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 
-// ─── Badge de statut ──────────────────────────────────────────────────────────
+// ─── Badge priorité ───────────────────────────────────────────────────────────
 
-const STATUS_META: Record<MissionStatus, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
-  open:        { label: 'Ouverte',      color: '#2980b9', icon: 'radio-button-unchecked' },
-  in_progress: { label: 'En cours',     color: '#e67e22', icon: 'timelapse' },
-  done:        { label: 'Terminée',     color: '#27ae60', icon: 'check-circle' },
-  cancelled:   { label: 'Annulée',      color: '#c0392b', icon: 'cancel' },
+const PRIORITY_META: Record<PriorityLevel, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
+  Critique: { label: 'Critique',   color: '#c0392b', icon: 'priority-high' },
+  Urgent:   { label: 'Urgent',     color: '#e67e22', icon: 'warning-amber' },
+  Normal:   { label: 'Normal',     color: '#27ae60', icon: 'check-circle-outline' },
 };
 
-const FALLBACK_META = {
-  label: 'Inconnu',
-  color: '#888888',
-  icon: 'help-outline' as React.ComponentProps<typeof MaterialIcons>['name'],
-};
-
-function StatusBadge({ status }: { status: MissionStatus | string | null }) {
-  const meta = STATUS_META[status as MissionStatus] ?? { ...FALLBACK_META, label: status || 'Inconnu' };
+function PriorityBadge({ priority }: { priority: PriorityLevel | string | null }) {
+  if (!priority) return null;
+  const meta = PRIORITY_META[priority as PriorityLevel] ?? { label: priority, color: '#888', icon: 'flag' as React.ComponentProps<typeof MaterialIcons>['name'] };
   return (
     <View style={[styles.badge, { backgroundColor: meta.color + '22' }]}>
       <MaterialIcons name={meta.icon} size={12} color={meta.color} />
@@ -59,21 +54,44 @@ function MissionCard({ item }: { item: Mission }) {
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
       onPress={() => router.push(`/mission/${item.id}`)}
     >
+      {/* Titre */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <StatusBadge status={item.status} />
       </View>
 
-      {item.description ? (
-        <Text style={styles.cardDesc} numberOfLines={3}>{item.description}</Text>
+      {/* Ligne 2 : catégorie + priorité */}
+      {(item.category || item.priority) ? (
+        <View style={styles.cardTags}>
+          {item.category ? (
+            <View style={styles.categoryChip}>
+              <MaterialIcons name="label-outline" size={11} color={colors.primary} />
+              <Text style={styles.categoryText}>{item.category}</Text>
+            </View>
+          ) : null}
+          <PriorityBadge priority={item.priority} />
+        </View>
       ) : null}
 
+      {/* Ligne 3 : description courte */}
+      {item.description ? (
+        <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+      ) : null}
+
+      {/* Footer : auteur + deadline */}
       <View style={styles.cardFooter}>
         <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-        <Text style={styles.cardMeta}>
-          {item.author ?? '—'}
-        </Text>
-        <MaterialIcons name="chevron-right" size={16} color={colors.secondary} style={{ marginLeft: 'auto' }} />
+        <Text style={styles.cardMeta}>{item.author ?? '—'}</Text>
+
+        {item.deadline ? (
+          <>
+            <MaterialIcons name="event" size={13} color={colors.secondary} style={{ marginLeft: 'auto' }} />
+            <Text style={styles.cardMeta}>
+              {new Date(item.deadline).toLocaleDateString('fr-FR')}
+            </Text>
+          </>
+        ) : (
+          <MaterialIcons name="chevron-right" size={16} color={colors.secondary} style={{ marginLeft: 'auto' }} />
+        )}
       </View>
     </Pressable>
   );
@@ -82,7 +100,13 @@ function MissionCard({ item }: { item: Mission }) {
 // ─── Formulaire de création (modal) ──────────────────────────────────────────
 
 const DRAFT_KEY = 'draft_create_mission';
-const DRAFT_INITIAL = { title: '', description: '' };
+const DRAFT_INITIAL = { title: '', description: '', category: '', deadline: '', priority: '' };
+
+const PRIORITY_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: 'Normal',   label: 'Normal',   color: '#27ae60' },
+  { value: 'Urgent',   label: 'Urgent',   color: '#e67e22' },
+  { value: 'Critique', label: 'Critique', color: '#c0392b' },
+];
 
 function CreateMissionModal({
   visible,
@@ -100,6 +124,14 @@ function CreateMissionModal({
   );
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = React.useState(false);
+
+  const deadlineDate = values.deadline ? new Date(values.deadline) : new Date();
+
+  const onDateChange = (_: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (date) setField('deadline', date.toISOString().split('T')[0]);
+  };
 
   const handleSubmit = async () => {
     if (!values.title.trim()) {
@@ -108,9 +140,13 @@ function CreateMissionModal({
     }
     setError(null);
     setSubmitting(true);
+
     const { error: sbError } = await supabase.from('courses').insert({
       title: values.title.trim(),
       description: values.description.trim() || null,
+      category: values.category.trim() || null,
+      deadline: values.deadline || null,   // déjà au format AAAA-MM-JJ
+      priority: values.priority || null,
       author: user?.id ?? null,
     });
     setSubmitting(false);
@@ -156,6 +192,37 @@ function CreateMissionModal({
               onChangeText={(v) => setField('title', v)}
             />
 
+            <Text style={modal.label}>Catégorie</Text>
+            <TextInput
+              style={modal.input}
+              placeholder="Ex : Urgence, Terrain, Admin…"
+              placeholderTextColor={colors.text + '66'}
+              value={values.category}
+              onChangeText={(v) => setField('category', v)}
+            />
+
+            <Text style={modal.label}>Priorité</Text>
+            <View style={modal.priorityRow}>
+              {PRIORITY_OPTIONS.map((opt) => {
+                const selected = values.priority === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      modal.priorityBtn,
+                      { borderColor: opt.color },
+                      selected && { backgroundColor: opt.color },
+                    ]}
+                    onPress={() => setField('priority', selected ? '' : opt.value)}
+                  >
+                    <Text style={[modal.priorityBtnText, { color: selected ? '#fff' : opt.color }]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <Text style={modal.label}>Description</Text>
             <TextInput
               style={[modal.input, modal.inputMulti]}
@@ -167,6 +234,73 @@ function CreateMissionModal({
               numberOfLines={4}
               textAlignVertical="top"
             />
+
+            <Text style={modal.label}>Deadline</Text>
+            {/* Bouton d'ouverture du picker */}
+            <TouchableOpacity
+              style={modal.dateBtn}
+              onPress={() => setShowDatePicker((v) => !v)}
+            >
+              <MaterialIcons name="event" size={16} color={colors.primary} />
+              <Text style={[modal.dateBtnText, !values.deadline && { color: colors.text + '66' }]}>
+                {values.deadline
+                  ? new Date(values.deadline).toLocaleDateString('fr-FR')
+                  : 'Choisir une date'}
+              </Text>
+              {values.deadline ? (
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation(); setField('deadline', ''); setShowDatePicker(false); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <MaterialIcons name="close" size={16} color={colors.secondary} />
+                </TouchableOpacity>
+              ) : (
+                <MaterialIcons name="expand-more" size={16} color={colors.secondary} />
+              )}
+            </TouchableOpacity>
+
+            {/* iOS : picker dans un Modal overlay pour éviter le chevauchement */}
+            {Platform.OS === 'ios' ? (
+              <Modal
+                visible={showDatePicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDatePicker(false)}
+              >
+                <TouchableOpacity
+                  style={modal.datePickerBackdrop}
+                  activeOpacity={1}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <TouchableOpacity activeOpacity={1} style={modal.datePickerCard}>
+                    <DateTimePicker
+                      value={deadlineDate}
+                      mode="date"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={onDateChange}
+                      locale="fr-FR"
+                      style={{ width: '100%' }}
+                    />
+                    <TouchableOpacity style={modal.dateConfirmBtn} onPress={() => setShowDatePicker(false)}>
+                      <Text style={modal.dateConfirmText}>Confirmer</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Modal>
+            ) : (
+              /* Android : picker natif inline */
+              showDatePicker && (
+                <DateTimePicker
+                  value={deadlineDate}
+                  mode="date"
+                  display="default"
+                  minimumDate={new Date()}
+                  onChange={onDateChange}
+                  locale="fr-FR"
+                />
+              )
+            )}
 
             {error ? <Text style={modal.error}>{error}</Text> : null}
 
@@ -335,6 +469,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
+  cardTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primary + '18',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  categoryText: {
+    fontSize: font.size.xs,
+    color: colors.primary,
+    fontWeight: font.weight.medium,
+  },
   cardTitle: {
     flex: 1,
     fontSize: font.size.md,
@@ -445,6 +598,62 @@ const modal = StyleSheet.create({
     fontSize: font.size.sm,
     color: '#c0392b',
     textAlign: 'center',
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.secondary + '55',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+  },
+  dateBtnText: {
+    flex: 1,
+    fontSize: font.size.md,
+    color: colors.text,
+  },
+  datePickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  datePickerCard: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  dateConfirmBtn: {
+    alignSelf: 'stretch',
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+  },
+  dateConfirmText: {
+    color: '#fff',
+    fontSize: font.size.sm,
+    fontWeight: font.weight.bold,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  priorityBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  priorityBtnText: {
+    fontSize: font.size.sm,
+    fontWeight: font.weight.bold,
   },
   submitBtn: {
     backgroundColor: colors.primary,
