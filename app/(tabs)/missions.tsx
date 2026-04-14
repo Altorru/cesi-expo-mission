@@ -176,14 +176,6 @@ function CreateMissionModal({
               </TouchableOpacity>
             </View>
 
-            {/* Indicateur brouillon */}
-            {isRestored && (values.title || values.description) ? (
-              <View style={modal.draftBanner}>
-                <MaterialIcons name="history" size={14} color={colors.secondary} />
-                <Text style={modal.draftText}>Brouillon restauré</Text>
-              </View>
-            ) : null}
-
             <Text style={modal.label}>Titre *</Text>
             <TextInput
               style={modal.input}
