@@ -18,13 +18,12 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { BlurHeader, HEADER_CONTENT_HEIGHT } from '@/components/ui/BlurHeader';
 import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { fetchUserPseudos } from '@/services/userService';
 import type { Mission, PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 
@@ -49,7 +48,7 @@ function PriorityBadge({ priority }: { priority: PriorityLevel | string | null }
 
 // ─── Carte mission ────────────────────────────────────────────────────────────
 
-function MissionCard({ item }: { item: Mission }) {
+function MissionCard({ item, authorPseudo }: { item: Mission; authorPseudo?: string }) {
   const router = useRouter();
   return (
     <Pressable
@@ -82,7 +81,7 @@ function MissionCard({ item }: { item: Mission }) {
       {/* Footer : auteur + deadline */}
       <View style={styles.cardFooter}>
         <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-        <Text style={styles.cardMeta}>{item.author ?? '—'}</Text>
+        <Text style={styles.cardMeta}>{authorPseudo || item.author?.slice(0, 8) || '—'}</Text>
 
         {item.deadline ? (
           <>
@@ -336,16 +335,19 @@ export default function MissionsScreen() {
   const { missions, isLoading, error, refetch } = useMissions();
   const [refreshing, setRefreshing] = React.useState(false);
   const [showCreate, setShowCreate] = React.useState(false);
+  const [authorPseudos, setAuthorPseudos] = React.useState<Record<string, string>>({});
+
+  // Résoudre les pseudos de tous les auteurs dès que la liste change
+  React.useEffect(() => {
+    if (missions.length === 0) return;
+    fetchUserPseudos(missions.map((m) => m.author)).then(setAuthorPseudos);
+  }, [missions]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
   };
-
-  // 6d — spinner pendant le premier chargement
-  const { top } = useSafeAreaInsets();
-  const headerHeight = top + HEADER_CONTENT_HEIGHT;
 
   if (isLoading) {
     return (
@@ -367,18 +369,26 @@ export default function MissionsScreen() {
   }
 
   return (
-    <View style={styles.safe}>
+    <SafeAreaView style={styles.safe}>
+      {/* En-tête avec titre + bouton + */}
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>Missions</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+          <MaterialIcons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         // 6c — changer la key force le re-mount quand numColumns change
         key={`missions-cols-${numColumns}`}
         data={missions}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        contentContainerStyle={[styles.list, { paddingTop: headerHeight + 8 }]}
+        contentContainerStyle={styles.list}
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         renderItem={({ item }) => (
           <View style={[styles.cardWrapper, numColumns > 1 && styles.cardWrapperMulti]}>
-            <MissionCard item={item} />
+            <MissionCard item={item} authorPseudo={item.author ? authorPseudos[item.author] : undefined} />
           </View>
         )}
         ListEmptyComponent={
@@ -403,17 +413,7 @@ export default function MissionsScreen() {
         onClose={() => setShowCreate(false)}
         onCreated={refetch}
       />
-
-      {/* Header flottant blur — positionné APRÈS le contenu pour être au-dessus */}
-      <BlurHeader
-        title="Missions"
-        right={
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
-            <MaterialIcons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        }
-      />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -424,7 +424,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-
+  screenTitle: {
+    fontSize: font.size.xl,
+    fontWeight: font.weight.bold,
+    color: colors.primary,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
   addBtn: {
     backgroundColor: colors.primary,
     borderRadius: radius.full,

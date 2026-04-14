@@ -19,6 +19,7 @@ export default function RegisterScreen() {
   const { signUp } = useAuth();
 
   const [email, setEmail] = useState('');
+  const [pseudo, setPseudo] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +27,17 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     setError(null);
+    if (!pseudo.trim()) {
+      setError('Le pseudo est requis.');
+      return;
+    }
     if (password !== confirm) {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
     setLoading(true);
     try {
-      await signUp(email.trim(), password);
+      await signUp(email.trim(), password, pseudo.trim());
       router.replace('/(tabs)');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Une erreur est survenue.');
@@ -48,6 +53,16 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Text style={styles.title}>Inscription</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Pseudo"
+          placeholderTextColor={colors.text + '88'}
+          value={pseudo}
+          onChangeText={setPseudo}
+          autoCapitalize="none"
+          textContentType="username"
+        />
 
         <TextInput
           style={styles.input}

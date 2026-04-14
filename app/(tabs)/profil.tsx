@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export default function ProfilScreen() {
   const { user, signOut, isLoading } = useAuth();
+  const pseudo: string = (user?.user_metadata?.full_name as string | undefined) ?? '';
 
   if (isLoading) {
     return (
@@ -22,13 +23,21 @@ export default function ProfilScreen() {
 
         {/* Avatar placeholder */}
         <View style={styles.avatarCircle}>
-          <MaterialIcons name="person" size={56} color={colors.primary} />
+          {pseudo ? (
+            <Text style={styles.avatarInitials}>
+              {pseudo.slice(0, 2).toUpperCase()}
+            </Text>
+          ) : (
+            <MaterialIcons name="person" size={56} color={colors.primary} />
+          )}
         </View>
+
+        {pseudo ? <Text style={styles.pseudoLabel}>{pseudo}</Text> : null}
 
         {/* Infos */}
         <View style={styles.card}>
-          <InfoRow icon="alternate-email" label="Email" value={user?.email ?? '—'} />
-          <InfoRow icon="badge" label="ID" value={user?.id ?? '—'} />
+          {pseudo ? <InfoRow icon="alternate-email" label="Pseudo" value={pseudo} /> : null}
+          <InfoRow icon="mail-outline" label="Email" value={user?.email ?? '—'} />
         </View>
 
         {/* Déconnexion */}
@@ -85,6 +94,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#e6d9ee',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 36,
+    fontWeight: font.weight.bold,
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  pseudoLabel: {
+    fontSize: font.size.lg,
+    fontWeight: font.weight.bold,
+    color: colors.primary,
   },
   card: {
     width: '100%',

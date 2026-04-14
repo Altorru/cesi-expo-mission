@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { fetchUserPseudos } from '@/services/userService';
 import type { PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 
@@ -120,6 +121,13 @@ export default function MissionDetailScreen() {
   const { mission, isLoading, error, refetch } = useMission(id);
 
   const [modalVisible, setModalVisible] = React.useState(false);
+  const [pseudos, setPseudos] = React.useState<Record<string, string>>({});
+
+  // Résoudre author + in_charge dès que la mission est chargée
+  React.useEffect(() => {
+    if (!mission) return;
+    fetchUserPseudos([mission.author, mission.in_charge]).then(setPseudos);
+  }, [mission?.author, mission?.in_charge]);
 
   // Refetch explicite au retour depuis modify (en complément du Realtime)
   useFocusEffect(
@@ -234,11 +242,17 @@ export default function MissionDetailScreen() {
 
         {/* Méta */}
         <View style={styles.metaCard}>
-          <MetaRow icon="person-outline" label="Auteur" value={mission.author ?? '—'} />
+          <MetaRow icon="person-outline" label="Auteur" value={mission.author ? (pseudos[mission.author] || mission.author.slice(0, 8)) : '—'} />
           <MetaRow
             icon="assignment-ind"
             label="Assignée à"
-            value={isAssignedToMe ? 'Moi' : mission.in_charge ?? 'Non assignée'}
+            value={
+              isAssignedToMe
+                ? 'Moi'
+                : mission.in_charge
+                ? (pseudos[mission.in_charge] || mission.in_charge.slice(0, 8))
+                : 'Non assignée'
+            }
             valueColor={
               isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : colors.text + '88'
             }
