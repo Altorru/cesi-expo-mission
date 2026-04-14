@@ -13,7 +13,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useMissions } from '@/hooks/useMissions';
@@ -51,8 +53,12 @@ function StatusBadge({ status }: { status: MissionStatus | string | null }) {
 // ─── Carte mission ────────────────────────────────────────────────────────────
 
 function MissionCard({ item }: { item: Mission }) {
+  const router = useRouter();
   return (
-    <View style={styles.card}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+      onPress={() => router.push(`/mission/${item.id}`)}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
         <StatusBadge status={item.status} />
@@ -67,8 +73,9 @@ function MissionCard({ item }: { item: Mission }) {
         <Text style={styles.cardMeta}>
           {item.author ?? '—'}
         </Text>
+        <MaterialIcons name="chevron-right" size={16} color={colors.secondary} style={{ marginLeft: 'auto' }} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

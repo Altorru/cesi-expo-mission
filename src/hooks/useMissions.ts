@@ -65,7 +65,7 @@ export function useMyMissions(userId: string | undefined) {
     const { data, error } = await supabase
       .from('courses')
       .select(MISSIONS_SELECT)
-      .eq('assigned_to', userId)          // 3c — filtre par assignee
+      .eq('in_charge', userId)          // 3c — filtre par assignee
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -88,7 +88,7 @@ export function useMyMissions(userId: string | undefined) {
           event: '*',
           schema: 'public',
           table: 'courses',
-          filter: userId ? `assigned_to=eq.${userId}` : undefined,
+          filter: userId ? `in_charge=eq.${userId}` : undefined,
         },
         () => { fetchMyMissions(); }
       )
