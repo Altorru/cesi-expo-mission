@@ -2,12 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Mission } from '@/types/mission';
 
-// Sélection avec jointures author et assignee (3a)
-const MISSIONS_SELECT = `
-  *,
-  author:profiles!author_id(id, email, full_name),
-  assignee:profiles!assigned_to(id, email, full_name)
-`.trim();
+// Sélection simple sans jointures
+const MISSIONS_SELECT = '*';
 
 // ─── Hook : toutes les missions ───────────────────────────────────────────────
 
@@ -19,7 +15,7 @@ export function useMissions() {
   const fetchMissions = useCallback(async () => {
     setError(null);
     const { data, error } = await supabase
-      .from('missions')
+      .from('courses')
       .select(MISSIONS_SELECT)
       .order('created_at', { ascending: false });
 
@@ -36,10 +32,10 @@ export function useMissions() {
 
     // 3b — Abonnement Realtime : rafraîchissement automatique à chaque mutation
     const channel = supabase
-      .channel('missions_realtime')
+      .channel('courses_realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'missions' },
+        { event: '*', schema: 'public', table: 'courses' },
         () => { fetchMissions(); }
       )
       .subscribe();
@@ -67,7 +63,7 @@ export function useMyMissions(userId: string | undefined) {
     }
     setError(null);
     const { data, error } = await supabase
-      .from('missions')
+      .from('courses')
       .select(MISSIONS_SELECT)
       .eq('assigned_to', userId)          // 3c — filtre par assignee
       .order('created_at', { ascending: false });
@@ -91,7 +87,7 @@ export function useMyMissions(userId: string | undefined) {
         {
           event: '*',
           schema: 'public',
-          table: 'missions',
+          table: 'courses',
           filter: userId ? `assigned_to=eq.${userId}` : undefined,
         },
         () => { fetchMyMissions(); }
@@ -121,7 +117,7 @@ export function useMission(missionId: string | undefined) {
     }
     setError(null);
     const { data, error } = await supabase
-      .from('missions')
+      .from('courses')
       .select(MISSIONS_SELECT)
       .eq('id', missionId)
       .single<Mission>();               // 3d — récupération unique
@@ -145,7 +141,7 @@ export function useMission(missionId: string | undefined) {
         {
           event: '*',
           schema: 'public',
-          table: 'missions',
+          table: 'courses',
           filter: missionId ? `id=eq.${missionId}` : undefined,
         },
         () => { fetchMission(); }

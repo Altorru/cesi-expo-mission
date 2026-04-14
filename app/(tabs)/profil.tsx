@@ -5,7 +5,7 @@ import { colors, spacing, radius, font } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function ProfilScreen() {
-  const { user, profile, signOut, isLoading } = useAuth();
+  const { user, signOut, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -28,7 +28,7 @@ export default function ProfilScreen() {
         {/* Infos */}
         <View style={styles.card}>
           <InfoRow icon="alternate-email" label="Email" value={user?.email ?? '—'} />
-          <InfoRow icon="badge" label="Pseudo" value={profile?.username ?? 'Non défini'} />
+          <InfoRow icon="badge" label="ID" value={user?.id ?? '—'} />
         </View>
 
         {/* Déconnexion */}
