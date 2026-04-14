@@ -18,7 +18,9 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { BlurHeader, HEADER_CONTENT_HEIGHT } from '@/components/ui/BlurHeader';
 import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
@@ -342,6 +344,9 @@ export default function MissionsScreen() {
   };
 
   // 6d — spinner pendant le premier chargement
+  const { top } = useSafeAreaInsets();
+  const headerHeight = top + HEADER_CONTENT_HEIGHT;
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -362,22 +367,14 @@ export default function MissionsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* En-tête avec titre + bouton + */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Missions</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
-          <MaterialIcons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.safe}>
       <FlatList
         // 6c — changer la key force le re-mount quand numColumns change
         key={`missions-cols-${numColumns}`}
         data={missions}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingTop: headerHeight + 8 }]}
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         renderItem={({ item }) => (
           <View style={[styles.cardWrapper, numColumns > 1 && styles.cardWrapperMulti]}>
@@ -406,7 +403,17 @@ export default function MissionsScreen() {
         onClose={() => setShowCreate(false)}
         onCreated={refetch}
       />
-    </SafeAreaView>
+
+      {/* Header flottant blur — positionné APRÈS le contenu pour être au-dessus */}
+      <BlurHeader
+        title="Missions"
+        right={
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+            <MaterialIcons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
+    </View>
   );
 }
 
@@ -417,19 +424,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  title: {
-    fontSize: font.size.xl,
-    fontWeight: font.weight.bold,
-    color: colors.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
+
   addBtn: {
     backgroundColor: colors.primary,
     borderRadius: radius.full,
