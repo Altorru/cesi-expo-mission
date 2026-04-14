@@ -17,10 +17,12 @@
  * car il contient un index.tsx
  */
 
-import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useEffect } from "react";
+import { AuthProvider } from "../src/context/AuthContext";
+import { useAuth } from "../src/context/AuthContext";
 
 /**
  * Composant séparé car useAuth() nécessite d'être
@@ -29,6 +31,21 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
+  const { session, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!session && !inAuthGroup) {
+      // Pas de session → rediriger vers login
+      router.replace('/(auth)/login');
+    } else if (session && inAuthGroup) {
+      // Session active → rediriger vers l'app
+      router.replace('/(tabs)');
+    }
+  }, [session, isLoading, segments]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -43,7 +60,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="auto" />
-      <RootLayoutNav />
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
