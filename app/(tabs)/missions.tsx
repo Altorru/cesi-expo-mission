@@ -337,7 +337,6 @@ export default function MissionsScreen() {
   const [showCreate, setShowCreate] = React.useState(false);
   const [authorPseudos, setAuthorPseudos] = React.useState<Record<string, string>>({});
 
-  // Résoudre les pseudos de tous les auteurs dès que la liste change
   React.useEffect(() => {
     if (missions.length === 0) return;
     fetchUserPseudos(missions.map((m) => m.author)).then(setAuthorPseudos);

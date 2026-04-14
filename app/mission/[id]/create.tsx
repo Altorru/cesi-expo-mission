@@ -24,7 +24,7 @@ export default function CreateMissionScreen() {
         category:    values.category.trim() || null,
         deadline:    values.deadline || null,
         priority:    (values.priority as PriorityLevel) || null,
-        author:      user?.email ?? null,
+        author:      user?.id ?? null,
       });
       router.replace('/(tabs)/missions');
     } catch (e: unknown) {

@@ -123,7 +123,6 @@ export default function MissionDetailScreen() {
   const [modalVisible, setModalVisible] = React.useState(false);
   const [pseudos, setPseudos] = React.useState<Record<string, string>>({});
 
-  // Résoudre author + in_charge dès que la mission est chargée
   React.useEffect(() => {
     if (!mission) return;
     fetchUserPseudos([mission.author, mission.in_charge]).then(setPseudos);

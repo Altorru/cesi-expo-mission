@@ -7,7 +7,6 @@
  *     select id, raw_user_meta_data->>'full_name' as full_name
  *     from auth.users;
  *
- *   -- Accès en lecture pour les utilisateurs connectés :
  *   grant select on public.profiles to authenticated;
  */
 import { supabase } from '@/lib/supabase';
