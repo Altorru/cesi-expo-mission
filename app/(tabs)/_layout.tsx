@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Text, View, StyleSheet, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../../src/styles/theme";
@@ -7,6 +8,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 
 // Couleur de fond principale de l'app (pour le fondu en bas)
 const BG = "236, 226, 241";
+
+// Hauteur standard de la tab bar (sans insets)
+const TAB_BAR_HEIGHT = 56;
 
 interface TabIconProps {
   icon: React.ComponentProps<typeof MaterialIcons>["name"];
@@ -40,28 +44,42 @@ function TabIcon({ icon, label, focused }: TabIconProps) {
 }
 
 function TabBarBackground() {
-  if (Platform.OS !== "ios") {
-    return <View style={[StyleSheet.absoluteFill, styles.tabBarAndroid]} />;
-  }
   return (
     <View style={StyleSheet.absoluteFill}>
-      <BlurView intensity={10} tint="light" style={StyleSheet.absoluteFill} />
-      <LinearGradient
-        colors={[`rgba(${BG}, 1)`, `rgba(${BG}, 0)`]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      {Platform.OS === "ios" && (
+        <>
+          <BlurView intensity={95} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={[`rgba(${BG}, 0.4)`, `rgba(${BG}, 0.1)`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+        </>
+      )}
+      {Platform.OS === "android" && (
+        <View style={[StyleSheet.absoluteFill, styles.tabBarAndroid]} />
+      )}
     </View>
   );
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: TAB_BAR_HEIGHT + insets.bottom,
+            paddingBottom: insets.bottom,
+          },
+        ],
         tabBarHideOnKeyboard: true,
         tabBarBackground: () => <TabBarBackground />,
       }}
@@ -97,21 +115,25 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "transparent",
     borderTopWidth: 0,
     elevation: 0,
-    height: 84,
+    paddingTop: 12,
   },
   tabBarAndroid: {
-    backgroundColor: `rgba(${BG}, 0.94)`,
-    borderTopColor: colors.primary + "18",
+    backgroundColor: `rgba(${BG}, 0.95)`,
+    borderTopColor: colors.primary + "15",
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   tabIconContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 8,
     gap: 3,
-    paddingTop: 32,
     minWidth: 72,
   },
   iconPill: {
