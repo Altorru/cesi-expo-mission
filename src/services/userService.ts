@@ -27,8 +27,8 @@ const cache: Record<string, string> = {};
 // ─── fetchUserPseudos ─────────────────────────────────────────────────────────
 
 /**
- * Résout une liste d'UUIDs vers un record { uuid: full_name }.
- * Les IDs déjà en cache ne sont pas re-fetchés.
+ * Résout une liste d'UUIDs vers un record { uuid: label }.
+ * label = full_name si existant, sinon la partie locale de l'email, sinon ''.
  */
 export async function fetchUserPseudos(
   ids: (string | null | undefined)[],
@@ -39,11 +39,15 @@ export async function fetchUserPseudos(
   if (missing.length > 0) {
     const { data } = await supabase
       .from('users_view')
-      .select('id, full_name')
+      .select('id, full_name, email')
       .in('id', missing);
 
     for (const row of data ?? []) {
-      cache[row.id] = (row.full_name as string | null) ?? '';
+      const label =
+        (row.full_name as string | null)?.trim() ||
+        (row.email as string | null)?.split('@')[0] ||
+        '';
+      cache[row.id] = label;
     }
     for (const id of missing) {
       if (!(id in cache)) cache[id] = '';

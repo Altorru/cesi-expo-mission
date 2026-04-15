@@ -278,7 +278,7 @@ export default function MissionDetailScreen() {
 
         {/* Méta */}
         <View style={styles.metaCard}>
-          <MetaRow icon="person-outline" label="Auteur" value={mission.author ? (pseudos[mission.author] || mission.author.slice(0, 8)) : '—'} />
+          <MetaRow icon="person-outline" label="Auteur" value={mission.author ? (pseudos[mission.author] || '—') : '—'} />
           <MetaRow
             icon="assignment-ind"
             label="Assignée à"
@@ -286,7 +286,7 @@ export default function MissionDetailScreen() {
               isAssignedToMe
                 ? 'Moi'
                 : mission.in_charge
-                ? (pseudos[mission.in_charge] || mission.in_charge.slice(0, 8))
+                ? (pseudos[mission.in_charge] || '—')
                 : 'Non assignée'
             }
             valueColor={

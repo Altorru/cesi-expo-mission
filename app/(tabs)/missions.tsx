@@ -84,7 +84,7 @@ function MissionCard({ item, authorName }: { item: Mission; authorName?: string 
       {/* Footer : auteur + deadline */}
       <View style={styles.cardFooter}>
         <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-        <Text style={styles.cardMeta}>{authorName || item.author?.slice(0, 8) || '—'}</Text>
+        <Text style={styles.cardMeta}>{authorName || '—'}</Text>
 
         {item.deadline ? (
           <>
