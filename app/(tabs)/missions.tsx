@@ -545,7 +545,7 @@ export default function MissionsScreen() {
         </View>
 
         {/* Squelettes cartes */}
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: 80 }]}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.cardWrapper}>
               <View style={[styles.card, { overflow: 'hidden' }]}>
@@ -581,83 +581,85 @@ export default function MissionsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filtres */}
-      <View style={styles.filtersWrap}>
-        {/* Priorité */}
-        <FlatList
-          horizontal
-          data={PRIORITY_FILTERS}
-          keyExtractor={(item) => String(item.value ?? 'all')}
-          contentContainerStyle={styles.filterScroll}
-          scrollEnabled={false}
-          renderItem={({ item }) => {
-            const isSelected = item.value === null ? selectedPriorities.size === 3 : selectedPriorities.has(item.value);
-            const bgColor = item.color || themeColors.secondary;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  isSelected && {
-                    backgroundColor: bgColor,
-                    borderColor: bgColor,
-                  },
-                  !isSelected && {
-                    backgroundColor: bgColor + '15',
-                    borderColor: bgColor + '55',
-                  },
-                ]}
-                onPress={() => {
-                  if (item.value === null) {
-                    // "Toutes" : sélectionner toutes les priorités
-                    setSelectedPriorities(new Set(['Critique', 'Urgent', 'Normal']));
-                  } else {
-                    // Toggle la priorité
-                    const newSet = new Set(selectedPriorities);
-                    if (newSet.has(item.value)) {
-                      newSet.delete(item.value);
-                    } else {
-                      newSet.add(item.value);
-                    }
-                    setSelectedPriorities(newSet);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                {item.icon && (
-                  <MaterialIcons
-                    name={item.icon}
-                    size={14}
-                    color={isSelected ? '#fff' : bgColor}
-                    style={{ marginRight: 4 }}
-                  />
-                )}
-                <Text
+      {/* Filtres + Tri (responsive) */}
+      <View style={[styles.filtersContainer, width > 600 && styles.filtersContainerLandscape]}>
+        {/* Filtres (priorité) */}
+        <View style={[styles.filtersWrap, width > 600 && styles.filtersWrapLandscape]}>
+          <FlatList
+            horizontal
+            data={PRIORITY_FILTERS}
+            keyExtractor={(item) => String(item.value ?? 'all')}
+            contentContainerStyle={styles.filterScroll}
+            scrollEnabled={false}
+            renderItem={({ item }) => {
+              const isSelected = item.value === null ? selectedPriorities.size === 3 : selectedPriorities.has(item.value);
+              const bgColor = item.color || themeColors.secondary;
+              return (
+                <TouchableOpacity
                   style={[
-                    styles.chipText,
-                    { color: isSelected ? '#fff' : bgColor },
-                    isSelected && { fontWeight: font.weight.bold },
+                    styles.chip,
+                    isSelected && {
+                      backgroundColor: bgColor,
+                      borderColor: bgColor,
+                    },
+                    !isSelected && {
+                      backgroundColor: bgColor + '15',
+                      borderColor: bgColor + '55',
+                    },
                   ]}
+                  onPress={() => {
+                    if (item.value === null) {
+                      // "Toutes" : sélectionner toutes les priorités
+                      setSelectedPriorities(new Set(['Critique', 'Urgent', 'Normal']));
+                    } else {
+                      // Toggle la priorité
+                      const newSet = new Set(selectedPriorities);
+                      if (newSet.has(item.value)) {
+                        newSet.delete(item.value);
+                      } else {
+                        newSet.add(item.value);
+                      }
+                      setSelectedPriorities(newSet);
+                    }
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      </View>
+                  {item.icon && (
+                    <MaterialIcons
+                      name={item.icon}
+                      size={14}
+                      color={isSelected ? '#fff' : bgColor}
+                      style={{ marginRight: 4 }}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: isSelected ? '#fff' : bgColor },
+                      isSelected && { fontWeight: font.weight.bold },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
 
-      {/* Tri modal picker */}
-      <TouchableOpacity
-        style={styles.sortBtn}
-        onPress={() => setShowSortModal(true)}
-        activeOpacity={0.7}
-      >
-        <MaterialIcons name="sort" size={16} color={themeColors.primary} />
-        <Text style={styles.sortBtnText}>
-          {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Tri'}
-        </Text>
-        <MaterialIcons name="expand-more" size={16} color={themeColors.primary} />
-      </TouchableOpacity>
+        {/* Tri modal picker - aligné avec les filtres en mode landscape */}
+        <TouchableOpacity
+          style={[styles.sortBtn, width > 600 && styles.sortBtnLandscape]}
+          onPress={() => setShowSortModal(true)}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="sort" size={16} color={themeColors.primary} />
+          <Text style={styles.sortBtnText} numberOfLines={1}>
+            {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Tri'}
+          </Text>
+          <MaterialIcons name="expand-more" size={16} color={themeColors.primary} />
+        </TouchableOpacity>
+      </View>
 
       {/* Modal de tri */}
       <Modal
@@ -710,7 +712,7 @@ export default function MissionsScreen() {
         data={visibleMissions}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: 80 }]}
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         renderItem={({ item }) => (
           <View style={[styles.cardWrapper, numColumns > 1 && styles.cardWrapperMulti]}>
@@ -900,9 +902,25 @@ const createMissionsStyles = (themeColors: ReturnType<typeof getColors>) => Styl
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
   },
+  filtersContainer: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  filtersContainerLandscape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   filtersWrap: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  filtersWrapLandscape: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   filterScroll: {
     gap: spacing.xs,
@@ -934,8 +952,14 @@ const createMissionsStyles = (themeColors: ReturnType<typeof getColors>) => Styl
     borderWidth: 1,
     borderColor: themeColors.primary + '33',
   },
+  sortBtnLandscape: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+    minWidth: 180,
+    justifyContent: 'center',
+  },
   sortBtnText: {
-    flex: 1,
+    flex: 0,
     fontSize: font.size.sm,
     fontWeight: font.weight.medium,
     color: themeColors.primary,
