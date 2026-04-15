@@ -491,6 +491,7 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
+    alignSelf: 'stretch',
     backgroundColor: colors.primary,
     borderRadius: radius.md,
     padding: spacing.md,
