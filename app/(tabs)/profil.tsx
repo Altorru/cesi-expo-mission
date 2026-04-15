@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { colors, spacing, radius, font } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
+import { EditPseudoModal } from '@/components/features/EditPseudoModal';
 
 export default function ProfilScreen() {
-  const { user, signOut, isLoading } = useAuth();
+  const { user, signOut, isLoading, updatePseudo } = useAuth();
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const pseudo: string = (user?.user_metadata?.full_name as string | undefined) ?? '';
 
   if (isLoading) {
@@ -32,7 +35,19 @@ export default function ProfilScreen() {
           )}
         </View>
 
-        {pseudo ? <Text style={styles.pseudoLabel}>{pseudo}</Text> : null}
+        {/* Pseudo avec bouton d'édition */}
+        {pseudo ? (
+          <View style={styles.pseudoContainer}>
+            <Text style={styles.pseudoLabel}>{pseudo}</Text>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => setEditModalVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialIcons name="edit" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Infos */}
         <View style={styles.card}>
@@ -46,6 +61,14 @@ export default function ProfilScreen() {
           <Text style={styles.signOutText}>Se déconnecter</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal d'édition du pseudo */}
+      <EditPseudoModal
+        visible={editModalVisible}
+        currentPseudo={pseudo}
+        onClose={() => setEditModalVisible(false)}
+        onConfirm={updatePseudo}
+      />
     </SafeAreaView>
   );
 }
@@ -101,10 +124,18 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 1,
   },
+  pseudoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   pseudoLabel: {
     fontSize: font.size.lg,
     fontWeight: font.weight.bold,
     color: colors.primary,
+  },
+  editButton: {
+    padding: spacing.sm,
   },
   card: {
     width: '100%',

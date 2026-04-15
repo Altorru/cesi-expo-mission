@@ -48,8 +48,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) throw error;
   };
 
+  const updatePseudo = async (newPseudo: string) => {
+    if (!user) throw new Error('User not authenticated');
+    
+    const { error } = await supabase.auth.updateUser({
+      data: { full_name: newPseudo.trim() },
+    });
+    
+    if (error) throw error;
+    
+    // Mettre à jour l'état local immédiatement
+    setUser((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        user_metadata: { ...prev.user_metadata, full_name: newPseudo.trim() },
+      };
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut, updatePseudo }}>
       {children}
     </AuthContext.Provider>
   );
