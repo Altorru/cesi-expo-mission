@@ -48,7 +48,7 @@ function PriorityBadge({ priority }: { priority: PriorityLevel | string | null }
 
 // ─── Carte mission ────────────────────────────────────────────────────────────
 
-function MissionCard({ item, authorPseudo }: { item: Mission; authorPseudo?: string }) {
+function MissionCard({ item, authorName }: { item: Mission; authorName?: string }) {
   const router = useRouter();
   return (
     <Pressable
@@ -81,7 +81,7 @@ function MissionCard({ item, authorPseudo }: { item: Mission; authorPseudo?: str
       {/* Footer : auteur + deadline */}
       <View style={styles.cardFooter}>
         <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-        <Text style={styles.cardMeta}>{authorPseudo || item.author?.slice(0, 8) || '—'}</Text>
+        <Text style={styles.cardMeta}>{authorName || item.author?.slice(0, 8) || '—'}</Text>
 
         {item.deadline ? (
           <>
@@ -379,7 +379,7 @@ export default function MissionsScreen() {
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         renderItem={({ item }) => (
           <View style={[styles.cardWrapper, numColumns > 1 && styles.cardWrapperMulti]}>
-            <MissionCard item={item} authorPseudo={item.author ? authorPseudos[item.author] : undefined} />
+            <MissionCard item={item} authorName={item.author ? authorPseudos[item.author] : undefined} />
           </View>
         )}
         ListEmptyComponent={

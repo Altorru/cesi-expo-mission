@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Mission } from '@/types/mission';
 
-// Sélection simple sans jointures
+// Sélection simple — les noms sont résolus via users_view dans fetchUserPseudos
 const MISSIONS_SELECT = '*';
 
 // ─── Hook : toutes les missions ───────────────────────────────────────────────

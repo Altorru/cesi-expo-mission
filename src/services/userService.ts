@@ -1,13 +1,13 @@
 /**
- * userService — Résolution des UUIDs utilisateurs en pseudos
+ * userService — Résolution des UUIDs utilisateurs en full_name
  *
  * Requiert la vue suivante dans Supabase (SQL Editor) :
  *
- *   create or replace view public.profiles as
+ *   create or replace view public.users_view as
  *     select id, raw_user_meta_data->>'full_name' as full_name
  *     from auth.users;
  *
- *   grant select on public.profiles to authenticated;
+ *   grant select on public.users_view to authenticated;
  */
 import { supabase } from '@/lib/supabase';
 
@@ -17,7 +17,7 @@ const cache: Record<string, string> = {};
 /**
  * Résout une liste d'UUIDs vers un record { uuid: full_name }.
  * Les IDs déjà en cache ne sont pas re-fetchés.
- * Retourne une chaîne vide pour les utilisateurs sans pseudo.
+ * Retourne une chaîne vide pour les utilisateurs sans nom.
  */
 export async function fetchUserPseudos(
   ids: (string | null | undefined)[],
@@ -27,7 +27,7 @@ export async function fetchUserPseudos(
 
   if (missing.length > 0) {
     const { data } = await supabase
-      .from('profiles')
+      .from('users_view')
       .select('id, full_name')
       .in('id', missing);
 
