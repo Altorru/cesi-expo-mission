@@ -12,11 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { colors, spacing, radius, font } from '@/styles/theme';
+import { useTheme } from '@/context/ThemeContext';
+import { getColors, spacing, radius, font } from '@/styles/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
 
   const [email, setEmail] = useState('');
   const [pseudo, setPseudo] = useState('');
@@ -47,17 +50,24 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: themeColors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Text style={styles.title}>Inscription</Text>
+        <Text style={[styles.title, { color: themeColors.primary }]}>Inscription</Text>
 
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              color: themeColors.text,
+              backgroundColor: themeColors.inputBackground,
+              borderColor: themeColors.border,
+            },
+          ]}
           placeholder="Pseudo"
-          placeholderTextColor={colors.text + '88'}
+          placeholderTextColor={themeColors.textSecondary}
           value={pseudo}
           onChangeText={setPseudo}
           autoCapitalize="none"
@@ -65,9 +75,16 @@ export default function RegisterScreen() {
         />
 
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              color: themeColors.text,
+              backgroundColor: themeColors.inputBackground,
+              borderColor: themeColors.border,
+            },
+          ]}
           placeholder="Email"
-          placeholderTextColor={colors.text + '88'}
+          placeholderTextColor={themeColors.textSecondary}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -76,9 +93,16 @@ export default function RegisterScreen() {
         />
 
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              color: themeColors.text,
+              backgroundColor: themeColors.inputBackground,
+              borderColor: themeColors.border,
+            },
+          ]}
           placeholder="Mot de passe"
-          placeholderTextColor={colors.text + '88'}
+          placeholderTextColor={themeColors.textSecondary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -86,19 +110,26 @@ export default function RegisterScreen() {
         />
 
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              color: themeColors.text,
+              backgroundColor: themeColors.inputBackground,
+              borderColor: themeColors.border,
+            },
+          ]}
           placeholder="Confirmer le mot de passe"
-          placeholderTextColor={colors.text + '88'}
+          placeholderTextColor={themeColors.textSecondary}
           value={confirm}
           onChangeText={setConfirm}
           secureTextEntry
           textContentType="newPassword"
         />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={[styles.error, { color: '#f38ba8' }]}>{error}</Text>}
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[styles.button, { backgroundColor: themeColors.primary }, loading && styles.buttonDisabled]}
           onPress={handleRegister}
           disabled={loading}
         >
@@ -110,7 +141,7 @@ export default function RegisterScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
+          <Text style={[styles.link, { color: themeColors.secondary }]}>Déjà un compte ? Se connecter</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -120,7 +151,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -131,21 +161,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: font.size.xl,
     fontWeight: font.weight.bold,
-    color: colors.primary,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.secondary,
     borderRadius: radius.md,
     padding: spacing.md,
     fontSize: font.size.md,
-    color: colors.text,
-    backgroundColor: '#fff',
   },
   button: {
-    backgroundColor: colors.primary,
     borderRadius: radius.md,
     padding: spacing.md,
     alignItems: 'center',
@@ -160,13 +185,11 @@ const styles = StyleSheet.create({
     fontWeight: font.weight.bold,
   },
   link: {
-    color: colors.secondary,
     textAlign: 'center',
     fontSize: font.size.sm,
     marginTop: spacing.xs,
   },
   error: {
-    color: '#c0392b',
     fontSize: font.size.sm,
     textAlign: 'center',
   },

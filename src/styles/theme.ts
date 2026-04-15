@@ -10,15 +10,36 @@
 import { StyleSheet } from 'react-native';
 
 /**
- * Couleurs de l'application
- * À terme, ces couleurs seront définies dans tailwind.config.js
+ * Palettes de couleurs par thème
+ * Approche Apple-like : couleurs adaptées à chaque mode
  */
-export const colors = {
+const lightPalette = {
   primary: '#391d48',
   secondary: '#4a255d',
   background: '#ece2f1',
   text: '#360e4b',
+  textSecondary: '#666666',
+  border: '#e0e0e0',
+  cardBackground: '#ffffff',
+  inputBackground: '#f9f9f9',
 } as const;
+
+const darkPalette = {
+  primary: '#d4a5e8',
+  secondary: '#b896d6',
+  background: '#1a1a1a',
+  text: '#f5f5f5',
+  textSecondary: '#b0b0b0',
+  border: '#333333',
+  cardBackground: '#2a2a2a',
+  inputBackground: '#1f1f1f',
+} as const;
+
+/** Fonction pour obtenir les couleurs selon le thème */
+export const getColors = (isDark: boolean) => isDark ? darkPalette : lightPalette;
+
+/** Couleurs par défaut (mode clair) - pour compatibilité rétroactive */
+export const colors = lightPalette;
 
 /**
  * Espacements standardisés
@@ -36,7 +57,8 @@ export const radius = {
   md:  10,
   lg:  16,
   full: 9999,
-}
+} as const;
+
 export const font = {
   size: {
     xs:   11,
@@ -54,64 +76,71 @@ export const font = {
 
 
 /**
- * Styles globaux réutilisables
+ * Styles globaux réutilisables dynamiques
  */
-export const globalStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
+export const getGlobalStyles = (isDark: boolean) => {
+  const c = getColors(isDark);
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
 
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 28,
-    textAlign: "center",
-  },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: c.primary,
+      marginBottom: 28,
+      textAlign: "center",
+    },
 
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-    alignSelf: "stretch",
-    backgroundColor: '#fff',
-  },
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 14,
+      marginBottom: 12,
+      fontSize: 16,
+      alignSelf: "stretch",
+      backgroundColor: c.inputBackground,
+      color: c.text,
+    },
 
-  btn: {
-    backgroundColor: "#534AB7",
-    borderRadius: 10,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 8,
-  },
+    btn: {
+      backgroundColor: "#534AB7",
+      borderRadius: 10,
+      padding: 16,
+      alignItems: "center",
+      marginTop: 8,
+    },
 
-  btnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+    btnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
 
-  link: { textAlign: "center", marginTop: 16, color: "#534AB7" },
+    link: { textAlign: "center", marginTop: 16, color: c.primary },
 
-  divider: {
-    textAlign: "center",
-    color: "#999",
-    marginVertical: 16,
-    fontSize: 13,
-  },
+    divider: {
+      textAlign: "center",
+      color: c.textSecondary,
+      marginVertical: 16,
+      fontSize: 13,
+    },
 
-  error: {
-    color: "#E24B4A",
-    fontSize: 13,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-});
+    error: {
+      color: "#E24B4A",
+      fontSize: 13,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+  });
+};
+
+/** Styles par défaut (mode clair) - pour compatibilité rétroactive */
+export const globalStyles = getGlobalStyles(false);

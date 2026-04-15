@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { globalStyles } from "@/styles/theme";
+import { getColors } from "@/styles/theme";
+import { useTheme } from "@/context/ThemeContext";
 import {
   registerForPushNotificationsAsync,
   sendLocalNotification,
@@ -13,6 +14,8 @@ type TokenStatus = "loading" | "unavailable" | string;
 export default function App() {
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>("loading");
   const [sendingAll, setSendingAll] = useState(false);
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
 
   useEffect(() => {
     registerForPushNotificationsAsync()
@@ -50,7 +53,7 @@ export default function App() {
   };
 
   const tokenDisplay = () => {
-    if (tokenStatus === "loading") return { text: "Chargement…", color: "#a6adc8" };
+    if (tokenStatus === "loading") return { text: "Chargement…", color: themeColors.textSecondary };
     if (tokenStatus === "unavailable")
       return {
         text: "Non disponible (Expo Go / simulateur)\nUtilise un dev build pour les push tokens.",
@@ -62,19 +65,19 @@ export default function App() {
   const { text, color } = tokenDisplay();
 
   return (
-    <SafeAreaView style={globalStyles.container}>
-      <View style={globalStyles.container}>
-        <Text style={globalStyles.title}>Bienvenue !</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <Text style={[styles.title, { color: themeColors.primary }]}>Bienvenue !</Text>
 
-        <View style={styles.debugPanel}>
-          <Text style={styles.debugTitle}>🛠 Debug Notifications</Text>
+        <View style={[styles.debugPanel, { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border }]}>
+          <Text style={[styles.debugTitle, { color: themeColors.text }]}>🛠 Debug Notifications</Text>
 
-          <Text style={styles.tokenLabel}>Expo Push Token :</Text>
+          <Text style={[styles.tokenLabel, { color: themeColors.textSecondary }]}>Expo Push Token :</Text>
           <Text style={[styles.tokenValue, { color }]} selectable>
             {text}
           </Text>
 
-          <TouchableOpacity style={styles.button} onPress={handleTestNotification}>
+          <TouchableOpacity style={[styles.button, { backgroundColor: themeColors.primary }]} onPress={handleTestNotification}>
             <Text style={styles.buttonText}>Envoyer une notif locale</Text>
           </TouchableOpacity>
 
@@ -84,7 +87,7 @@ export default function App() {
             disabled={sendingAll}
           >
             {sendingAll ? (
-              <ActivityIndicator color="#1e1e2e" />
+              <ActivityIndicator color={themeColors.primary} />
             ) : (
               <Text style={styles.buttonText}>📢 Notifier tous les utilisateurs</Text>
             )}
@@ -96,31 +99,36 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   debugPanel: {
     marginTop: 32,
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#1e1e2e",
     gap: 8,
   },
   debugTitle: {
-    color: "#cdd6f4",
     fontWeight: "700",
     fontSize: 16,
     marginBottom: 4,
   },
   tokenLabel: {
-    color: "#a6adc8",
     fontSize: 12,
   },
   tokenValue: {
     fontSize: 11,
     fontFamily: "monospace",
   },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginTop: 24,
+    textAlign: "center",
+  },
   button: {
     marginTop: 12,
-    backgroundColor: "#89b4fa",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -132,7 +140,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: "#1e1e2e",
+    color: "#fff",
     fontWeight: "700",
     fontSize: 14,
   },

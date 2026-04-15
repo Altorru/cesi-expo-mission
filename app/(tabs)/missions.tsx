@@ -24,10 +24,11 @@ import { MISSION_CARD_BONES, FILTER_CHIPS_BONES, SORT_BUTTON_BONES } from '@/com
 import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserPseudos, fetchUserById, type UserRecord } from '@/services/userService';
 import type { Mission, PriorityLevel } from '@/types/mission';
-import { colors, spacing, radius, font } from '@/styles/theme';
+import { getColors, spacing, radius, font } from '@/styles/theme';
 import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
 
 // ─── Constantes de filtre ─────────────────────────────────────────────────────
@@ -56,76 +57,6 @@ const PRIORITY_META: Record<PriorityLevel, { label: string; color: string; icon:
   Normal:   { label: 'Normal',     color: '#27ae60', icon: 'check-circle-outline' },
 };
 
-function PriorityBadge({ priority }: { priority: PriorityLevel | string | null }) {
-  if (!priority) return null;
-  const meta = PRIORITY_META[priority as PriorityLevel] ?? { label: priority, color: '#888', icon: 'flag' as React.ComponentProps<typeof MaterialIcons>['name'] };
-  return (
-    <View style={[styles.badge, { backgroundColor: meta.color + '22' }]}>
-      <MaterialIcons name={meta.icon} size={12} color={meta.color} />
-      <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
-    </View>
-  );
-}
-
-// ─── Carte mission ────────────────────────────────────────────────────────────
-
-function MissionCard({ item, authorName, inCharge }: { item: Mission; authorName?: string; inCharge?: UserRecord | null }) {
-  const router = useRouter();
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-      onPress={() => router.push(`/mission/${item.id}`)}
-    >
-      {/* Titre */}
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-      </View>
-
-      {/* Ligne 2 : catégorie + priorité */}
-      {(item.category || item.priority) ? (
-        <View style={styles.cardTags}>
-          {item.category ? (
-            <View style={styles.categoryChip}>
-              <MaterialIcons name="label-outline" size={11} color={colors.primary} />
-              <Text style={styles.categoryText}>{item.category}</Text>
-            </View>
-          ) : null}
-          <PriorityBadge priority={item.priority} />
-        </View>
-      ) : null}
-
-      {/* Ligne 3 : description courte */}
-      {item.description ? (
-        <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-      ) : null}
-
-      {/* Footer : auteur + assignée + deadline */}
-      <View style={styles.cardFooter}>
-        <View style={styles.cardFooterLeft}>
-          <View style={styles.cardFooterRow}>
-            <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-            <Text style={styles.cardMeta}>Auteur: {authorName || '—'}</Text>
-          </View>
-
-          <View style={styles.cardFooterRow}>
-            <MaterialIcons name="assignment-ind" size={14} color={colors.secondary} />
-            <Text style={styles.cardMeta}>Assignée: {inCharge?.full_name || '—'}</Text>
-          </View>
-        </View>
-
-        {item.deadline ? (
-          <View style={styles.cardFooterRight}>
-            <MaterialIcons name="event" size={13} color={colors.secondary} />
-            <Text style={styles.cardMeta}>
-              {new Date(item.deadline).toLocaleDateString('fr-FR')}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 // ─── Formulaire de création (modal) ──────────────────────────────────────────
 
 const DRAFT_KEY = 'draft_create_mission';
@@ -141,10 +72,14 @@ function CreateMissionModal({
   visible,
   onClose,
   onCreated,
+  modal,
+  themeColors,
 }: {
   visible: boolean;
   onClose: () => void;
   onCreated: () => void;
+  modal: ReturnType<typeof createModalStyles>;
+  themeColors: ReturnType<typeof getColors>;
 }) {
   const { user } = useAuth();
   const { values, setField, clearDraft, isRestored } = useFormPersistence(
@@ -211,7 +146,7 @@ function CreateMissionModal({
             <View style={modal.header}>
               <Text style={modal.title}>Nouvelle mission</Text>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <MaterialIcons name="close" size={24} color={colors.text} />
+                <MaterialIcons name="close" size={24} color={themeColors.text} />
               </TouchableOpacity>
             </View>
 
@@ -219,7 +154,7 @@ function CreateMissionModal({
             <TextInput
               style={modal.input}
               placeholder="Titre de la mission"
-              placeholderTextColor={colors.text + '66'}
+              placeholderTextColor={themeColors.text + '66'}
               value={values.title}
               onChangeText={(v) => setField('title', v)}
             />
@@ -228,7 +163,7 @@ function CreateMissionModal({
             <TextInput
               style={modal.input}
               placeholder="Ex : Urgence, Terrain, Admin…"
-              placeholderTextColor={colors.text + '66'}
+              placeholderTextColor={themeColors.text + '66'}
               value={values.category}
               onChangeText={(v) => setField('category', v)}
             />
@@ -259,7 +194,7 @@ function CreateMissionModal({
             <TextInput
               style={[modal.input, modal.inputMulti]}
               placeholder="Décrivez la mission..."
-              placeholderTextColor={colors.text + '66'}
+              placeholderTextColor={themeColors.text + '66'}
               value={values.description}
               onChangeText={(v) => setField('description', v)}
               multiline
@@ -273,8 +208,8 @@ function CreateMissionModal({
               style={modal.dateBtn}
               onPress={() => setShowDatePicker((v) => !v)}
             >
-              <MaterialIcons name="event" size={16} color={colors.primary} />
-              <Text style={[modal.dateBtnText, !values.deadline && { color: colors.text + '66' }]}>
+              <MaterialIcons name="event" size={16} color={themeColors.primary} />
+              <Text style={[modal.dateBtnText, !values.deadline && { color: themeColors.text + '66' }]}>
                 {values.deadline
                   ? new Date(values.deadline).toLocaleDateString('fr-FR')
                   : 'Choisir une date'}
@@ -284,10 +219,10 @@ function CreateMissionModal({
                   onPress={(e) => { e.stopPropagation(); setField('deadline', ''); setShowDatePicker(false); }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <MaterialIcons name="close" size={16} color={colors.secondary} />
+                  <MaterialIcons name="close" size={16} color={themeColors.secondary} />
                 </TouchableOpacity>
               ) : (
-                <MaterialIcons name="expand-more" size={16} color={colors.secondary} />
+                <MaterialIcons name="expand-more" size={16} color={themeColors.secondary} />
               )}
             </TouchableOpacity>
 
@@ -358,14 +293,14 @@ function CreateMissionModal({
                     onPress={() => setInCharge(null)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <MaterialIcons name="close" size={16} color={colors.secondary} />
+                    <MaterialIcons name="close" size={16} color={themeColors.secondary} />
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <MaterialIcons name="person-add-alt" size={20} color={colors.secondary} />
+                  <MaterialIcons name="person-add-alt" size={20} color={themeColors.secondary} />
                   <Text style={modal.selectBtnPlaceholder}>Assigner à un utilisateur</Text>
-                  <MaterialIcons name="chevron-right" size={18} color={colors.secondary + '88'} />
+                  <MaterialIcons name="chevron-right" size={18} color={themeColors.secondary + '88'} />
                 </>
               )}
             </TouchableOpacity>
@@ -398,7 +333,83 @@ function CreateMissionModal({
 // ─── Écran principal ──────────────────────────────────────────────────────────
 
 export default function MissionsScreen() {
-  // 6a — dimensions de la fenêtre (réactif à la rotation)
+  // Thème
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
+  const styles = createMissionsStyles(themeColors);
+  const modal = createModalStyles(themeColors);
+
+  // ─── Composants internes ──────────────────────────────────────────────────
+
+  const PriorityBadge = ({ priority }: { priority: PriorityLevel | string | null }) => {
+    if (!priority) return null;
+    const meta = PRIORITY_META[priority as PriorityLevel] ?? { label: priority, color: '#888', icon: 'flag' as React.ComponentProps<typeof MaterialIcons>['name'] };
+    return (
+      <View style={[styles.badge, { backgroundColor: meta.color + '22' }]}>
+        <MaterialIcons name={meta.icon} size={12} color={meta.color} />
+        <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
+      </View>
+    );
+  };
+
+  const MissionCard = ({ item, authorName, inCharge }: { item: Mission; authorName?: string; inCharge?: UserRecord | null }) => {
+    const router = useRouter();
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+        onPress={() => router.push(`/mission/${item.id}`)}
+      >
+        {/* Titre */}
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+        </View>
+
+        {/* Ligne 2 : catégorie + priorité */}
+        {(item.category || item.priority) ? (
+          <View style={styles.cardTags}>
+            {item.category ? (
+              <View style={styles.categoryChip}>
+                <MaterialIcons name="label-outline" size={11} color={themeColors.primary} />
+                <Text style={styles.categoryText}>{item.category}</Text>
+              </View>
+            ) : null}
+            <PriorityBadge priority={item.priority} />
+          </View>
+        ) : null}
+
+        {/* Ligne 3 : description courte */}
+        {item.description ? (
+          <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+        ) : null}
+
+        {/* Footer : auteur + assignée + deadline */}
+        <View style={styles.cardFooter}>
+          <View style={styles.cardFooterLeft}>
+            <View style={styles.cardFooterRow}>
+              <MaterialIcons name="person-outline" size={14} color={themeColors.secondary} />
+              <Text style={styles.cardMeta}>Auteur: {authorName || '—'}</Text>
+            </View>
+
+            <View style={styles.cardFooterRow}>
+              <MaterialIcons name="assignment-ind" size={14} color={themeColors.secondary} />
+              <Text style={styles.cardMeta}>Assignée: {inCharge?.full_name || '—'}</Text>
+            </View>
+          </View>
+
+          {item.deadline ? (
+            <View style={styles.cardFooterRight}>
+              <MaterialIcons name="event" size={13} color={themeColors.secondary} />
+              <Text style={styles.cardMeta}>
+                {new Date(item.deadline).toLocaleDateString('fr-FR')}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
   const { width } = useWindowDimensions();
 
   // 6b — 2 colonnes en paysage (> 600 px), 1 en portrait
@@ -505,7 +516,13 @@ export default function MissionsScreen() {
 
         {/* Squelette filtres */}
         <View style={styles.filtersWrap}>
-          <View style={{ overflow: 'hidden', borderRadius: 12 }}>
+          <View 
+            style={{ 
+              overflow: 'hidden', 
+              borderRadius: 12,
+              backgroundColor: themeColors.cardBackground,
+            }}
+          >
             <Skeleton loading initialBones={FILTER_CHIPS_BONES}>
               <View style={{ height: FILTER_CHIPS_BONES.height }} />
             </Skeleton>
@@ -513,7 +530,15 @@ export default function MissionsScreen() {
         </View>
 
         {/* Squelette tri */}
-        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: 8 }}>
+        <View 
+          style={{ 
+            marginHorizontal: spacing.md, 
+            marginBottom: spacing.sm, 
+            overflow: 'hidden', 
+            borderRadius: 8,
+            backgroundColor: themeColors.cardBackground,
+          }}
+        >
           <Skeleton loading initialBones={SORT_BUTTON_BONES}>
             <View style={{ height: SORT_BUTTON_BONES.height }} />
           </Skeleton>
@@ -537,20 +562,20 @@ export default function MissionsScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
         <View style={styles.center}>
           <MaterialIcons name="error-outline" size={40} color="#c0392b" />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { color: themeColors.text }]}>{error}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       {/* En-tête avec titre + bouton + */}
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Missions</Text>
+        <Text style={[styles.screenTitle, { color: themeColors.text }]}>Missions</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
           <MaterialIcons name="add" size={24} color="#fff" />
         </TouchableOpacity>
@@ -567,7 +592,7 @@ export default function MissionsScreen() {
           scrollEnabled={false}
           renderItem={({ item }) => {
             const isSelected = item.value === null ? selectedPriorities.size === 3 : selectedPriorities.has(item.value);
-            const bgColor = item.color || colors.secondary;
+            const bgColor = item.color || themeColors.secondary;
             return (
               <TouchableOpacity
                 style={[
@@ -627,11 +652,11 @@ export default function MissionsScreen() {
         onPress={() => setShowSortModal(true)}
         activeOpacity={0.7}
       >
-        <MaterialIcons name="sort" size={16} color={colors.primary} />
+        <MaterialIcons name="sort" size={16} color={themeColors.primary} />
         <Text style={styles.sortBtnText}>
           {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Tri'}
         </Text>
-        <MaterialIcons name="expand-more" size={16} color={colors.primary} />
+        <MaterialIcons name="expand-more" size={16} color={themeColors.primary} />
       </TouchableOpacity>
 
       {/* Modal de tri */}
@@ -670,7 +695,7 @@ export default function MissionsScreen() {
                     </Text>
                   </View>
                   {selected && (
-                    <MaterialIcons name="check" size={18} color={colors.primary} />
+                    <MaterialIcons name="check" size={18} color={themeColors.primary} />
                   )}
                 </TouchableOpacity>
               );
@@ -694,7 +719,7 @@ export default function MissionsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.center}>
-            <MaterialIcons name="inbox" size={40} color={colors.secondary} />
+            <MaterialIcons name="inbox" size={40} color={themeColors.secondary} />
             <Text style={styles.emptyText}>Aucune mission</Text>
           </View>
         }
@@ -705,7 +730,7 @@ export default function MissionsScreen() {
           hasMore ? (
             <ActivityIndicator
               size="small"
-              color={colors.primary}
+              color={themeColors.primary}
               style={{ paddingVertical: spacing.lg }}
             />
           ) : null
@@ -715,8 +740,8 @@ export default function MissionsScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[themeColors.primary]}
+            tintColor={themeColors.primary}
           />
         }
       />
@@ -725,22 +750,24 @@ export default function MissionsScreen() {
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={refetch}
+        modal={modal}
+        themeColors={themeColors}
       />
     </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles - Fonctions générateurs ────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createMissionsStyles = (themeColors: ReturnType<typeof getColors>) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
   },
   screenTitle: {
     fontSize: font.size.xl,
     fontWeight: font.weight.bold,
-    color: colors.primary,
+    color: themeColors.primary,
   },
   header: {
     flexDirection: 'row',
@@ -751,7 +778,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   addBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: themeColors.primary,
     borderRadius: radius.full,
     width: 36,
     height: 36,
@@ -773,7 +800,7 @@ const styles = StyleSheet.create({
     flex: 0.5,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: themeColors.cardBackground,
     borderRadius: radius.lg,
     padding: spacing.md,
     gap: spacing.sm,
@@ -798,25 +825,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.primary + '18',
+    backgroundColor: themeColors.primary + '18',
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.full,
   },
   categoryText: {
     fontSize: font.size.xs,
-    color: colors.primary,
+    color: themeColors.primary,
     fontWeight: font.weight.medium,
   },
   cardTitle: {
     flex: 1,
     fontSize: font.size.md,
     fontWeight: font.weight.bold,
-    color: colors.text,
+    color: themeColors.text,
   },
   cardDesc: {
     fontSize: font.size.sm,
-    color: colors.text + 'bb',
+    color: themeColors.text + 'bb',
     lineHeight: 20,
   },
   cardFooter: {
@@ -842,7 +869,7 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     fontSize: font.size.xs,
-    color: colors.secondary,
+    color: themeColors.secondary,
   },
   badge: {
     flexDirection: 'row',
@@ -865,7 +892,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: font.size.md,
-    color: colors.secondary,
+    color: themeColors.secondary,
   },
   errorText: {
     fontSize: font.size.sm,
@@ -902,16 +929,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.primary + '33',
+    borderColor: themeColors.primary + '33',
   },
   sortBtnText: {
     flex: 1,
     fontSize: font.size.sm,
     fontWeight: font.weight.medium,
-    color: colors.primary,
+    color: themeColors.primary,
   },
   sortModalBackdrop: {
     flex: 1,
@@ -919,7 +946,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sortModalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: themeColors.cardBackground,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingTop: spacing.lg,
@@ -930,7 +957,7 @@ const styles = StyleSheet.create({
   sortModalTitle: {
     fontSize: font.size.lg,
     fontWeight: font.weight.bold,
-    color: colors.primary,
+    color: themeColors.primary,
     marginBottom: spacing.sm,
   },
   sortModalRow: {
@@ -941,24 +968,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   sortModalRowActive: {
-    backgroundColor: colors.primary + '12',
+    backgroundColor: themeColors.primary + '12',
   },
   sortModalRowText: {
     fontSize: font.size.md,
-    color: colors.text + 'cc',
+    color: themeColors.text + 'cc',
   },
   sortModalRowTextActive: {
-    color: colors.primary,
+    color: themeColors.primary,
     fontWeight: font.weight.bold,
   },
 });
 
 // ─── Styles modal ─────────────────────────────────────────────────────────────
 
-const modal = StyleSheet.create({
+const createModalStyles = (themeColors: ReturnType<typeof getColors>) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: themeColors.background,
   },
   container: {
     padding: spacing.lg,
@@ -973,36 +1000,36 @@ const modal = StyleSheet.create({
   title: {
     fontSize: font.size.lg,
     fontWeight: font.weight.bold,
-    color: colors.primary,
+    color: themeColors.primary,
   },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
   },
   draftText: {
     fontSize: font.size.xs,
-    color: colors.secondary,
+    color: themeColors.secondary,
     fontWeight: font.weight.medium,
   },
   label: {
     fontSize: font.size.sm,
     fontWeight: font.weight.medium,
-    color: colors.text,
+    color: themeColors.text,
     marginBottom: -spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.secondary + '55',
+    borderColor: themeColors.secondary + '55',
     borderRadius: radius.md,
     padding: spacing.md,
     fontSize: font.size.md,
-    color: colors.text,
-    backgroundColor: colors.background,
+    color: themeColors.text,
+    backgroundColor: themeColors.background,
   },
   inputMulti: {
     height: 110,
@@ -1017,15 +1044,15 @@ const modal = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.secondary + '55',
+    borderColor: themeColors.secondary + '55',
     borderRadius: radius.md,
     padding: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
   },
   dateBtnText: {
     flex: 1,
     fontSize: font.size.md,
-    color: colors.text,
+    color: themeColors.text,
   },
   datePickerBackdrop: {
     flex: 1,
@@ -1033,7 +1060,7 @@ const modal = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   datePickerCard: {
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingBottom: spacing.xl,
@@ -1043,7 +1070,7 @@ const modal = StyleSheet.create({
   dateConfirmBtn: {
     alignSelf: 'stretch',
     paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
+    backgroundColor: themeColors.primary,
     borderRadius: radius.md,
     marginTop: spacing.sm,
     alignItems: 'center',
@@ -1069,7 +1096,7 @@ const modal = StyleSheet.create({
     fontWeight: font.weight.bold,
   },
   submitBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: themeColors.primary,
     borderRadius: radius.md,
     padding: spacing.md,
     alignItems: 'center',
@@ -1088,25 +1115,25 @@ const modal = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.secondary + '55',
+    borderColor: themeColors.secondary + '55',
     borderRadius: radius.md,
     padding: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
     minHeight: 52,
   },
   selectBtnName: {
     fontSize: font.size.md,
     fontWeight: font.weight.medium,
-    color: colors.text,
+    color: themeColors.text,
   },
   selectBtnEmail: {
     fontSize: font.size.xs,
-    color: colors.secondary,
+    color: themeColors.secondary,
     marginTop: 1,
   },
   selectBtnPlaceholder: {
     flex: 1,
     fontSize: font.size.md,
-    color: colors.text + '66',
+    color: themeColors.text + '66',
   },
 });

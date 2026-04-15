@@ -24,6 +24,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect } from "react";
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from "../src/context/AuthContext";
+import { ThemeProvider } from "../src/context/ThemeContext";
 import { useAuth } from "../src/context/AuthContext";
 import { initNotificationHandler } from "../src/lib/notifications";
 
@@ -89,9 +90,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="auto" />
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

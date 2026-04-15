@@ -20,10 +20,11 @@ import {
 import { MissionNotificationPanel } from '@/components/features/MissionNotificationPanel';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserPseudos } from '@/services/userService';
 import type { PriorityLevel } from '@/types/mission';
-import { colors, spacing, radius, font } from '@/styles/theme';
+import { getColors, spacing, radius, font } from '@/styles/theme';
 
 // ─── Badge priorité ────────────────────────────────────────────────────────────
 
@@ -37,19 +38,33 @@ const PRIORITY_META: Record<PriorityLevel, { label: string; color: string }> = {
 
 type AssignState = 'confirm' | 'loading' | 'success' | 'error';
 
+interface ThemeColors {
+  primary: string;
+  secondary: string;
+  background: string;
+  text: string;
+  textSecondary: string;
+  border: string;
+  cardBackground: string;
+  inputBackground: string;
+}
+
 function AssignModal({
   visible,
   label,
   onConfirm,
   onClose,
+  themeColors,
 }: {
   visible: boolean;
   label: string;
   onConfirm: () => Promise<void>;
   onClose: () => void;
+  themeColors: ThemeColors;
 }) {
   const [state, setState] = React.useState<AssignState>('confirm');
   const [errorMsg, setErrorMsg] = React.useState('');
+  const modalStyles = createModalStyles(themeColors);
 
   React.useEffect(() => {
     if (visible) { setState('confirm'); setErrorMsg(''); }
@@ -68,19 +83,19 @@ function AssignModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.dialog}>
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.dialog}>
           {state === 'confirm' && (
             <>
-              <MaterialIcons name="assignment-ind" size={36} color={colors.primary} />
-              <Text style={styles.dialogTitle}>{label}</Text>
-              <Text style={styles.dialogSub}>Confirmer cette action ?</Text>
-              <View style={styles.dialogRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                  <Text style={styles.cancelText}>Annuler</Text>
+              <MaterialIcons name="assignment-ind" size={36} color={themeColors.primary} />
+              <Text style={modalStyles.dialogTitle}>{label}</Text>
+              <Text style={modalStyles.dialogSub}>Confirmer cette action ?</Text>
+              <View style={modalStyles.dialogRow}>
+                <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose}>
+                  <Text style={modalStyles.cancelText}>Annuler</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                  <Text style={styles.confirmText}>Confirmer</Text>
+                <TouchableOpacity style={modalStyles.confirmBtn} onPress={handleConfirm}>
+                  <Text style={modalStyles.confirmText}>Confirmer</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -88,17 +103,17 @@ function AssignModal({
 
           {state === 'loading' && (
             <>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.dialogSub}>En cours…</Text>
+              <ActivityIndicator size="large" color={themeColors.primary} />
+              <Text style={modalStyles.dialogSub}>En cours…</Text>
             </>
           )}
 
           {state === 'success' && (
             <>
               <MaterialIcons name="check-circle" size={40} color="#27ae60" />
-              <Text style={styles.dialogTitle}>Succès !</Text>
-              <TouchableOpacity style={styles.confirmBtn} onPress={onClose}>
-                <Text style={styles.confirmText}>Fermer</Text>
+              <Text style={modalStyles.dialogTitle}>Succès !</Text>
+              <TouchableOpacity style={modalStyles.confirmBtn} onPress={onClose}>
+                <Text style={modalStyles.confirmText}>Fermer</Text>
               </TouchableOpacity>
             </>
           )}
@@ -106,10 +121,10 @@ function AssignModal({
           {state === 'error' && (
             <>
               <MaterialIcons name="error-outline" size={40} color="#c0392b" />
-              <Text style={styles.dialogTitle}>Erreur</Text>
-              <Text style={styles.dialogSub}>{errorMsg}</Text>
-              <TouchableOpacity style={styles.confirmBtn} onPress={onClose}>
-                <Text style={styles.confirmText}>Fermer</Text>
+              <Text style={modalStyles.dialogTitle}>Erreur</Text>
+              <Text style={modalStyles.dialogSub}>{errorMsg}</Text>
+              <TouchableOpacity style={modalStyles.confirmBtn} onPress={onClose}>
+                <Text style={modalStyles.confirmText}>Fermer</Text>
               </TouchableOpacity>
             </>
           )}
@@ -122,6 +137,10 @@ function AssignModal({
 // ─── Écran détail ─────────────────────────────────────────────────────────────
 
 export default function MissionDetailScreen() {
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
+  const styles = createMissionDetailStyles(themeColors);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -170,7 +189,7 @@ export default function MissionDetailScreen() {
             onPress={() => router.back()}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+            <MaterialIcons name="arrow-back" size={24} color={themeColors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Détail</Text>
           <View style={{ width: 64 }} />
@@ -195,7 +214,7 @@ export default function MissionDetailScreen() {
           </View>
 
           {/* Bouton assignation — rendu directement comme View colorée */}
-          <View style={[styles.assignBtn, { backgroundColor: colors.primary + '55' }]} />
+          <View style={[styles.assignBtn, { backgroundColor: themeColors.primary + '55' }]} />
         </ScrollView>
       </SafeAreaView>
     );
@@ -205,7 +224,7 @@ export default function MissionDetailScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+          <MaterialIcons name="arrow-back" size={24} color={themeColors.primary} />
         </TouchableOpacity>
         <View style={styles.center}>
           <MaterialIcons name="error-outline" size={40} color="#c0392b" />
@@ -223,7 +242,7 @@ export default function MissionDetailScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+          <MaterialIcons name="arrow-back" size={24} color={themeColors.primary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>Détail</Text>
@@ -234,7 +253,7 @@ export default function MissionDetailScreen() {
             onPress={() => router.push(`/mission/${id}/modify`)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MaterialIcons name="edit" size={22} color={colors.primary} />
+            <MaterialIcons name="edit" size={22} color={themeColors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push(`/mission/${id}/delete`)}
@@ -254,7 +273,7 @@ export default function MissionDetailScreen() {
           <View style={styles.tagsRow}>
             {mission.category ? (
               <View style={styles.categoryChip}>
-                <MaterialIcons name="label-outline" size={13} color={colors.primary} />
+                <MaterialIcons name="label-outline" size={13} color={themeColors.primary} />
                 <Text style={styles.categoryText}>{mission.category}</Text>
               </View>
             ) : null}
@@ -279,7 +298,7 @@ export default function MissionDetailScreen() {
 
         {/* Méta */}
         <View style={styles.metaCard}>
-          <MetaRow icon="person-outline" label="Auteur" value={mission.author ? (pseudos[mission.author] || '—') : '—'} />
+          <MetaRow icon="person-outline" label="Auteur" value={mission.author ? (pseudos[mission.author] || '—') : '—'} themeColors={themeColors} />
           <MetaRow
             icon="assignment-ind"
             label="Assignée à"
@@ -291,20 +310,23 @@ export default function MissionDetailScreen() {
                 : 'Non assignée'
             }
             valueColor={
-              isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : colors.text + '88'
+              isAssignedToMe ? '#27ae60' : isAssignedToOther ? '#e67e22' : themeColors.text + '88'
             }
+            themeColors={themeColors}
           />
           {mission.deadline ? (
             <MetaRow
               icon="event"
               label="Deadline"
               value={new Date(mission.deadline).toLocaleDateString('fr-FR')}
+              themeColors={themeColors}
             />
           ) : null}
           <MetaRow
             icon="schedule"
             label="Créée le"
             value={new Date(mission.created_at).toLocaleDateString('fr-FR')}
+            themeColors={themeColors}
           />
         </View>
 
@@ -339,6 +361,7 @@ export default function MissionDetailScreen() {
         label={assignLabel}
         onConfirm={handleAssign}
         onClose={() => setModalVisible(false)}
+        themeColors={themeColors}
       />
     </SafeAreaView>
   );
@@ -349,200 +372,214 @@ function MetaRow({
   label,
   value,
   valueColor,
+  themeColors,
 }: {
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
   label: string;
   value: string;
   valueColor?: string;
+  themeColors: ThemeColors;
 }) {
+  const metaStyles = createMetaRowStyles(themeColors);
   return (
-    <View style={styles.metaRow}>
-      <MaterialIcons name={icon} size={16} color={colors.secondary} style={{ marginRight: spacing.sm }} />
-      <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={[styles.metaValue, valueColor ? { color: valueColor } : null]}>{value}</Text>
+    <View style={metaStyles.metaRow}>
+      <MaterialIcons name={icon} size={16} color={themeColors.secondary} style={{ marginRight: spacing.sm }} />
+      <Text style={metaStyles.metaLabel}>{label}</Text>
+      <Text style={[metaStyles.metaValue, valueColor ? { color: valueColor } : null]}>{value}</Text>
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  backBtn: { padding: spacing.md },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  headerTitle: {
-    fontSize: font.size.md,
-    fontWeight: font.weight.bold,
-    color: colors.primary,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  title: {
-    fontSize: font.size.xl,
-    fontWeight: font.weight.bold,
-    color: colors.text,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  categoryText: {
-    fontSize: font.size.xs,
-    color: colors.primary,
-    fontWeight: font.weight.medium,
-  },
-  priorityChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  priorityText: {
-    fontSize: font.size.xs,
-    fontWeight: font.weight.bold,
-  },
-  section: { gap: spacing.xs },
-  sectionLabel: {
-    fontSize: font.size.sm,
-    fontWeight: font.weight.medium,
-    color: colors.text + '88',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  sectionText: {
-    fontSize: font.size.md,
-    color: colors.text,
-    lineHeight: 22,
-  },
-  metaCard: {
-    backgroundColor: '#fff',
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0e9f5',
-  },
-  metaLabel: {
-    flex: 1,
-    fontSize: font.size.sm,
-    color: colors.text + '88',
-  },
-  metaValue: {
-    fontSize: font.size.sm,
-    fontWeight: font.weight.medium,
-    color: colors.text,
-    textAlign: 'right',
-    flexShrink: 1,
-  },
-  assignBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  assignBtnUnassign: { backgroundColor: '#c0392b' },
-  assignBtnDisabled: { backgroundColor: '#aaa' },
-  assignBtnText: {
-    color: '#fff',
-    fontSize: font.size.md,
-    fontWeight: font.weight.bold,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  errorText: {
-    fontSize: font.size.sm,
-    color: '#c0392b',
-    textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  // Modal
-  overlay: {
-    flex: 1,
-    backgroundColor: '#00000055',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialog: {
-    backgroundColor: '#fff',
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    width: '80%',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  dialogTitle: {
-    fontSize: font.size.lg,
-    fontWeight: font.weight.bold,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  dialogSub: {
-    fontSize: font.size.sm,
-    color: colors.text + '99',
-    textAlign: 'center',
-  },
-  dialogRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.secondary,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  cancelText: {
-    color: colors.secondary,
-    fontWeight: font.weight.medium,
-  },
-  confirmBtn: {
-    flex: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  confirmText: {
-    color: '#fff',
-    fontWeight: font.weight.bold,
-  },
-});
+function createMissionDetailStyles(themeColors: ThemeColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: themeColors.background },
+    backBtn: { padding: spacing.md },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    headerTitle: {
+      fontSize: font.size.md,
+      fontWeight: font.weight.bold,
+      color: themeColors.primary,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    content: {
+      padding: spacing.lg,
+      gap: spacing.lg,
+    },
+    title: {
+      fontSize: font.size.xl,
+      fontWeight: font.weight.bold,
+      color: themeColors.text,
+    },
+    tagsRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      backgroundColor: themeColors.primary + '15',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.full,
+    },
+    categoryText: {
+      fontSize: font.size.xs,
+      color: themeColors.primary,
+      fontWeight: font.weight.medium,
+    },
+    priorityChip: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.full,
+    },
+    priorityText: {
+      fontSize: font.size.xs,
+      fontWeight: font.weight.bold,
+    },
+    section: { gap: spacing.xs },
+    sectionLabel: {
+      fontSize: font.size.sm,
+      fontWeight: font.weight.medium,
+      color: themeColors.text + '88',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    sectionText: {
+      fontSize: font.size.md,
+      color: themeColors.text,
+      lineHeight: 22,
+    },
+    metaCard: {
+      backgroundColor: themeColors.cardBackground,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    assignBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: themeColors.primary,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginTop: spacing.sm,
+    },
+    assignBtnUnassign: { backgroundColor: '#c0392b' },
+    assignBtnDisabled: { backgroundColor: '#aaa' },
+    assignBtnText: {
+      color: '#fff',
+      fontSize: font.size.md,
+      fontWeight: font.weight.bold,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+    },
+    errorText: {
+      fontSize: font.size.sm,
+      color: '#c0392b',
+      textAlign: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+  });
+}
+
+function createMetaRowStyles(themeColors: ThemeColors) {
+  return StyleSheet.create({
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
+    },
+    metaLabel: {
+      flex: 1,
+      fontSize: font.size.sm,
+      color: themeColors.text + '88',
+    },
+    metaValue: {
+      fontSize: font.size.sm,
+      fontWeight: font.weight.medium,
+      color: themeColors.text,
+      textAlign: 'right',
+      flexShrink: 1,
+    },
+  });
+}
+
+function createModalStyles(themeColors: ThemeColors) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: '#00000055',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dialog: {
+      backgroundColor: themeColors.cardBackground,
+      borderRadius: radius.lg,
+      padding: spacing.xl,
+      width: '80%',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    dialogTitle: {
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+      color: themeColors.text,
+      textAlign: 'center',
+    },
+    dialogSub: {
+      fontSize: font.size.sm,
+      color: themeColors.text + '99',
+      textAlign: 'center',
+    },
+    dialogRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.sm,
+    },
+    cancelBtn: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: themeColors.secondary,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      alignItems: 'center',
+    },
+    cancelText: {
+      color: themeColors.secondary,
+      fontWeight: font.weight.medium,
+    },
+    confirmBtn: {
+      flex: 1,
+      alignSelf: 'stretch',
+      backgroundColor: themeColors.primary,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      alignItems: 'center',
+    },
+    confirmText: {
+      color: '#fff',
+      fontWeight: font.weight.bold,
+    },
+  });
+}

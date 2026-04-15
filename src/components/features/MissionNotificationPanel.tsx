@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '@/context/ThemeContext';
 import {
   sendMissionNotification,
   sendMissionNotificationToAll,
 } from '@/lib/notifications';
-import { colors, spacing, font } from '@/styles/theme';
+import { spacing, font, getColors } from '@/styles/theme';
 
 interface MissionNotificationPanelProps {
   missionId: string;
@@ -16,6 +17,10 @@ export function MissionNotificationPanel({
   missionId,
   missionTitle,
 }: MissionNotificationPanelProps) {
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
+  const styles = createStyles(themeColors);
+
   const [sendingLocal, setSendingLocal] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
 
@@ -54,7 +59,7 @@ export function MissionNotificationPanel({
   return (
     <View style={styles.panel}>
       <View style={styles.header}>
-        <MaterialIcons name="notifications-active" size={18} color={colors.primary} />
+        <MaterialIcons name="notifications-active" size={18} color={themeColors.primary} />
         <Text style={styles.title}>Notifications</Text>
       </View>
 
@@ -64,10 +69,10 @@ export function MissionNotificationPanel({
         disabled={sendingLocal}
       >
         {sendingLocal ? (
-          <ActivityIndicator color={colors.background} size={16} />
+          <ActivityIndicator color="#fff" size={16} />
         ) : (
           <>
-            <MaterialIcons name="smartphone" size={16} color={colors.background} />
+            <MaterialIcons name="smartphone" size={16} color="#fff" />
             <Text style={styles.buttonText}>Notif locale</Text>
           </>
         )}
@@ -79,10 +84,10 @@ export function MissionNotificationPanel({
         disabled={sendingAll}
       >
         {sendingAll ? (
-          <ActivityIndicator color={colors.background} size={16} />
+          <ActivityIndicator color="#fff" size={16} />
         ) : (
           <>
-            <MaterialIcons name="broadcast-on-personal" size={16} color={colors.background} />
+            <MaterialIcons name="broadcast-on-personal" size={16} color="#fff" />
             <Text style={styles.buttonText}>À tous les users</Text>
           </>
         )}
@@ -91,46 +96,47 @@ export function MissionNotificationPanel({
   );
 }
 
-const styles = StyleSheet.create({
-  panel: {
-    marginTop: spacing.lg,
-    marginHorizontal: 0,
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    gap: spacing.sm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  title: {
-    color: colors.text,
-    fontWeight: font.weight.bold,
-    fontSize: font.size.sm,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-  },
-  buttonDanger: {
-    backgroundColor: '#f38ba8',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: colors.background,
-    fontWeight: font.weight.medium,
-    fontSize: font.size.xs,
-  },
-});
+const createStyles = (themeColors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    panel: {
+      marginTop: spacing.lg,
+      marginHorizontal: 0,
+      padding: spacing.md,
+      borderRadius: 12,
+      backgroundColor: themeColors.cardBackground,
+      borderLeftWidth: 4,
+      borderLeftColor: themeColors.primary,
+      gap: spacing.sm,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    title: {
+      color: themeColors.text,
+      fontWeight: font.weight.bold,
+      fontSize: font.size.sm,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: themeColors.primary,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+    },
+    buttonDanger: {
+      backgroundColor: '#f38ba8',
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: '#fff',
+      fontWeight: font.weight.medium,
+      fontSize: font.size.xs,
+    },
+  });

@@ -3,11 +3,9 @@ import { Text, View, StyleSheet, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "../../src/styles/theme";
+import { getColors } from "../../src/styles/theme";
+import { useTheme } from "../../src/context/ThemeContext";
 import { MaterialIcons } from "@expo/vector-icons";
-
-// Couleur de fond principale de l'app (pour le fondu en bas)
-const BG = "236, 226, 241";
 
 // Hauteur standard de la tab bar (sans insets)
 const TAB_BAR_HEIGHT = 56;
@@ -16,25 +14,31 @@ interface TabIconProps {
   icon: React.ComponentProps<typeof MaterialIcons>["name"];
   label: string;
   focused: boolean;
+  primaryColor: string;
 }
 
-function TabIcon({ icon, label, focused }: TabIconProps) {
+function TabIcon({ icon, label, focused, primaryColor }: TabIconProps) {
   return (
     <View style={styles.tabIconContainer}>
       <View
         style={[
           styles.iconPill,
+          focused && { backgroundColor: primaryColor },
           focused && styles.iconPillFocused,
         ]}
       >
         <MaterialIcons
           name={icon}
           size={24}
-          color={focused ? "#fff" : colors.primary + "70"}
+          color={focused ? "#fff" : primaryColor + "70"}
         />
       </View>
       <Text
-        style={[styles.tabLabel, focused && styles.tabLabelFocused]}
+        style={[
+          styles.tabLabel,
+          focused && { color: primaryColor, fontWeight: "600" },
+          !focused && { color: primaryColor + "80" },
+        ]}
         numberOfLines={1}
       >
         {label}
@@ -43,14 +47,14 @@ function TabIcon({ icon, label, focused }: TabIconProps) {
   );
 }
 
-function TabBarBackground() {
+function TabBarBackground({ bgColor, borderColor }: { bgColor: string; borderColor: string }) {
   return (
     <View style={StyleSheet.absoluteFill}>
       {Platform.OS === "ios" && (
         <>
           <BlurView intensity={95} style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={[`rgba(${BG}, 0.4)`, `rgba(${BG}, 0.1)`]}
+            colors={[bgColor + "66", bgColor + "1a"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -59,7 +63,7 @@ function TabBarBackground() {
         </>
       )}
       {Platform.OS === "android" && (
-        <View style={[StyleSheet.absoluteFill, styles.tabBarAndroid]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor + "f2", borderTopColor: borderColor, borderTopWidth: StyleSheet.hairlineWidth }]} />
       )}
     </View>
   );
@@ -67,6 +71,8 @@ function TabBarBackground() {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
 
   return (
     <Tabs
@@ -81,14 +87,14 @@ export default function TabsLayout() {
           },
         ],
         tabBarHideOnKeyboard: true,
-        tabBarBackground: () => <TabBarBackground />,
+        tabBarBackground: () => <TabBarBackground bgColor={themeColors.cardBackground} borderColor={themeColors.border} />,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="home" label="Accueil" focused={focused} />
+            <TabIcon icon="home" label="Accueil" focused={focused} primaryColor={themeColors.primary} />
           ),
         }}
       />
@@ -96,7 +102,7 @@ export default function TabsLayout() {
         name="missions"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="work" label="Missions" focused={focused} />
+            <TabIcon icon="work" label="Missions" focused={focused} primaryColor={themeColors.primary} />
           ),
         }}
       />
@@ -104,7 +110,7 @@ export default function TabsLayout() {
         name="profil"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="person" label="Profil" focused={focused} />
+            <TabIcon icon="person" label="Profil" focused={focused} primaryColor={themeColors.primary} />
           ),
         }}
       />
@@ -123,11 +129,6 @@ const styles = StyleSheet.create({
     elevation: 0,
     paddingTop: 12,
   },
-  tabBarAndroid: {
-    backgroundColor: `rgba(${BG}, 0.95)`,
-    borderTopColor: colors.primary + "15",
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
   tabIconContainer: {
     flex: 1,
     alignItems: "center",
@@ -145,8 +146,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   iconPillFocused: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -154,12 +153,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: colors.primary + "70",
     fontWeight: "500",
     letterSpacing: 0.1,
-  },
-  tabLabelFocused: {
-    color: colors.primary,
-    fontWeight: "700",
   },
 });
