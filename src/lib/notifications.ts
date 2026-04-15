@@ -215,3 +215,97 @@ export async function sendLocalNotification(
     throw e;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MISSIONS — Notifications spécifiques à une mission
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MissionNotificationPayload {
+  missionId: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * Envoie une notification locale pour une mission.
+ * Inclut missionId dans les données pour le deep linking.
+ *
+ * @param payload  { missionId, title, body }
+ */
+export async function sendMissionNotification(
+  payload: MissionNotificationPayload
+): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: payload.title,
+        body: payload.body,
+        data: { missionId: payload.missionId, screen: 'mission-detail' },
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 1,
+      },
+    });
+  } catch (e) {
+    console.warn('[Notifications] sendMissionNotification échoué :', e);
+    throw e;
+  }
+}
+
+/**
+ * Envoie une notification push à tous les utilisateurs pour une mission.
+ * Inclut missionId dans les données pour le deep linking.
+ *
+ * @param payload  { missionId, title, body }
+ */
+export async function sendMissionNotificationToAll(
+  payload: MissionNotificationPayload
+): Promise<void> {
+  // Récupérer tous les tokens non-nuls depuis Supabase
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('push_token')
+    .not('push_token', 'is', null);
+
+  if (error) {
+    throw new Error(`[Notifications] Erreur Supabase lors de la récupération des tokens : ${error.message}`);
+  }
+
+  const tokens = (profiles ?? [])
+    .map((p: { push_token: string | null }) => p.push_token)
+    .filter((t): t is string => Boolean(t));
+
+  if (tokens.length === 0) {
+    console.warn('[Notifications] Aucun token enregistré, aucune notification envoyée.');
+    return;
+  }
+
+  // Construire les messages au format Expo avec données de mission
+  const messages = tokens.map((to) => ({
+    to,
+    title: payload.title,
+    body: payload.body,
+    data: { missionId: payload.missionId, screen: 'mission-detail' },
+    sound: 'default' as const,
+  }));
+
+  // Envoi batch vers l'API Expo
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+    },
+    body: JSON.stringify(messages),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `[Notifications] Expo Push API — HTTP ${response.status} : ${text}`
+    );
+  }
+}

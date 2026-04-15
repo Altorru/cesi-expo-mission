@@ -17,6 +17,7 @@ import {
   MISSION_DESC_BONES,
   MISSION_META_BONES,
 } from '@/components/ui/SkeletonBones';
+import { MissionNotificationPanel } from '@/components/features/MissionNotificationPanel';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -306,6 +307,12 @@ export default function MissionDetailScreen() {
             value={new Date(mission.created_at).toLocaleDateString('fr-FR')}
           />
         </View>
+
+        {/* Panel de notifications */}
+        <MissionNotificationPanel
+          missionId={mission.id}
+          missionTitle={mission.title}
+        />
 
         {/* Bouton d'attribution conditionnel */}
         <TouchableOpacity

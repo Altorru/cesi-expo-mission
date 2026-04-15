@@ -12,6 +12,7 @@
  * - Fournir le SafeAreaProvider pour gérer les encoches iOS/Android
  * - Configurer la navigation Stack
  * - Gérer la StatusBar
+ * - Configurer le listener pour les notifications push
  *
  * Note: Le groupe (tabs) est automatiquement chargé comme route initiale
  * car il contient un index.tsx
@@ -21,6 +22,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect } from "react";
+import * as Notifications from 'expo-notifications';
 import { AuthProvider } from "../src/context/AuthContext";
 import { useAuth } from "../src/context/AuthContext";
 import { initNotificationHandler } from "../src/lib/notifications";
@@ -50,6 +52,25 @@ function RootLayoutNav() {
       router.replace('/(tabs)');
     }
   }, [session, isLoading, segments]);
+
+  // ─── Listener pour notifications entrantes (foreground et background) ────────
+
+  useEffect(() => {
+    // Écouter les notifications reçues en foreground
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const { notification } = response;
+        const missionId = notification.request.content.data?.missionId as string | undefined;
+
+        if (missionId) {
+          // Rediriger vers le détail de la mission
+          router.push(`/mission/${missionId}`);
+        }
+      }
+    );
+
+    return () => subscription.remove();
+  }, [router]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
