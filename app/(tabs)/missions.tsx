@@ -45,6 +45,9 @@ const SORT_OPTIONS = [
   { value: 'alphabetic-desc', label: 'Z → A', icon: 'sort-by-alpha' as const },
 ];
 
+/** Nombre de missions chargées par page (infinite scroll) */
+const PAGE_SIZE = 8;
+
 // ─── Badge Badge priorité ───────────────────────────────────────────────────────────
 
 const PRIORITY_META: Record<PriorityLevel, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
@@ -408,6 +411,9 @@ export default function MissionsScreen() {
   const [sortBy, setSortBy] = React.useState('date-desc');
   const [showSortModal, setShowSortModal] = React.useState(false);
 
+  // Pagination (infinite scroll)
+  const [displayCount, setDisplayCount] = React.useState(PAGE_SIZE);
+
   // Calcul des missions filtrées et triées
   const filteredMissions = React.useMemo(() => {
     let result = missions;
@@ -439,6 +445,24 @@ export default function MissionsScreen() {
     return sorted;
   }, [missions, selectedPriorities, filterCategory, filterInCharge, sortBy]);
 
+  // Pagination : missions affichées (tranche courante)
+  const visibleMissions = React.useMemo(
+    () => filteredMissions.slice(0, displayCount),
+    [filteredMissions, displayCount],
+  );
+  const hasMore = displayCount < filteredMissions.length;
+
+  const loadMore = React.useCallback(() => {
+    if (hasMore) {
+      setDisplayCount((prev) => prev + PAGE_SIZE);
+    }
+  }, [hasMore]);
+
+  // Reset pagination quand les filtres/tri changent
+  React.useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+  }, [selectedPriorities, filterCategory, filterInCharge, sortBy]);
+
   React.useEffect(() => {
     if (missions.length === 0) return;
     fetchUserPseudos(missions.map((m) => m.author)).then(setAuthorPseudos);
@@ -447,6 +471,7 @@ export default function MissionsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await refetch();
+    setDisplayCount(PAGE_SIZE);
     setRefreshing(false);
   };
 
@@ -636,7 +661,7 @@ export default function MissionsScreen() {
       <FlatList
         // 6c — changer la key force le re-mount quand numColumns change
         key={`missions-cols-${numColumns}`}
-        data={filteredMissions}
+        data={visibleMissions}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
         contentContainerStyle={styles.list}
@@ -651,6 +676,18 @@ export default function MissionsScreen() {
             <MaterialIcons name="inbox" size={40} color={colors.secondary} />
             <Text style={styles.emptyText}>Aucune mission</Text>
           </View>
+        }
+        // Infinite scroll
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          hasMore ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+              style={{ paddingVertical: spacing.lg }}
+            />
+          ) : null
         }
         // 6e — pull-to-refresh
         refreshControl={
