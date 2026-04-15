@@ -25,7 +25,7 @@ import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { fetchUserPseudos, type UserRecord } from '@/services/userService';
+import { fetchUserPseudos, fetchUserById, type UserRecord } from '@/services/userService';
 import type { Mission, PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
@@ -132,6 +132,12 @@ function CreateMissionModal({
   const [inCharge, setInCharge] = React.useState<UserRecord | null>(null);
   const [showUserPicker, setShowUserPicker] = React.useState(false);
 
+  // Pré-remplir avec l'utilisateur courant à l'ouverture
+  React.useEffect(() => {
+    if (!visible || !user?.id) return;
+    fetchUserById(user.id).then((u) => setInCharge(u));
+  }, [visible, user?.id]);
+
   const deadlineDate = values.deadline ? new Date(values.deadline) : new Date();
 
   const onDateChange = (_: DateTimePickerEvent, date?: Date) => {
@@ -162,7 +168,8 @@ function CreateMissionModal({
       return;
     }
     await clearDraft();
-    setInCharge(null);
+    if (user?.id) fetchUserById(user.id).then((u) => setInCharge(u));
+    else setInCharge(null);
     onCreated();
     onClose();
   };
