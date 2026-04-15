@@ -23,7 +23,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserPseudos } from '@/services/userService';
-import type { PriorityLevel } from '@/types/mission';
+import { updateMissionState } from '@/services/missionService';
+import type { PriorityLevel, MissionState } from '@/types/mission';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 
 // ─── Badge priorité ────────────────────────────────────────────────────────────
@@ -33,6 +34,30 @@ const PRIORITY_META: Record<PriorityLevel, { label: string; color: string }> = {
   Urgent:   { label: 'Urgent',   color: '#e67e22' },
   Normal:   { label: 'Normal',   color: '#27ae60' },
 };
+
+// ─── Badge État ─────────────────────────────────────────────────────────────────
+
+const STATE_META: Record<MissionState, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
+  'À faire':  { label: 'À faire',  color: '#8e44ad', icon: 'radio-button-unchecked' },
+  'En cours': { label: 'En cours',  color: '#3498db', icon: 'schedule' },
+  'Terminé':  { label: 'Terminé',   color: '#27ae60', icon: 'check-circle' },
+};
+
+// Fonction pour obtenir l'état suivant (flow du cycle de vie)
+function getNextState(currentState: MissionState | null): MissionState | null {
+  switch (currentState) {
+    case null:
+      return 'À faire';
+    case 'À faire':
+      return 'En cours';
+    case 'En cours':
+      return 'Terminé';
+    case 'Terminé':
+      return null;
+    default:
+      return 'À faire';
+  }
+}
 
 // ─── Modal de confirmation d'attribution ──────────────────────────────────────
 
@@ -165,6 +190,23 @@ export default function MissionDetailScreen() {
   const isAssignedToOther = !!mission?.in_charge && !isAssignedToMe;
   const isUnassigned = !mission?.in_charge;
 
+  // ─── Gestion de l'état de la mission ───────────────────────────────
+
+  const [isUpdatingState, setIsUpdatingState] = React.useState(false);
+
+  const handleChangeState = async () => {
+    const nextState = getNextState(mission?.state ?? null);
+    setIsUpdatingState(true);
+    try {
+      await updateMissionState(id, nextState);
+      await refetch();
+    } catch (err) {
+      console.error('Erreur lors du changement d\'état:', err);
+    } finally {
+      setIsUpdatingState(false);
+    }
+  };
+
   const handleAssign = async () => {
     const newAssignee = isAssignedToMe ? null : user?.id ?? null;
     const { error } = await supabase
@@ -268,6 +310,15 @@ export default function MissionDetailScreen() {
         {/* Titre */}
         <Text style={styles.title}>{mission.title}</Text>
 
+        {/* État - Apple-like Segment Status */}
+        <View style={styles.stateContainer}>
+          <StateSegmentControl
+            currentState={mission?.state ?? null}
+            onStateChange={handleChangeState}
+            isUpdating={isUpdatingState}
+          />
+        </View>
+
         {/* Catégorie + Priorité */}
         {(mission.category || mission.priority) ? (
           <View style={styles.tagsRow}>
@@ -367,6 +418,154 @@ export default function MissionDetailScreen() {
   );
 }
 
+// ─── Composant : State Segment Control (Apple-like) ────────────────────────
+
+function StateSegmentControl({
+  currentState,
+  onStateChange,
+  isUpdating,
+}: {
+  currentState: MissionState | null;
+  onStateChange: () => void;
+  isUpdating: boolean;
+}) {
+  const { isDark } = useTheme();
+  const themeColors = getColors(isDark);
+  const styles = createStateSegmentStyles(themeColors);
+
+  const nextState = getNextState(currentState);
+  const currentIndex = currentState === null ? 0 : (currentState === 'À faire' ? 1 : currentState === 'En cours' ? 2 : 3);
+
+  return (
+    <View style={styles.wrapper}>
+      <Text style={styles.label}>
+        Progression
+      </Text>
+      
+      <View style={styles.row}>
+        {[
+          { key: null as MissionState | null, label: 'À faire', color: '#8e44ad', icon: 'radio-button-unchecked' as const },
+          { key: 'En cours' as MissionState, label: 'En cours', color: '#3498db', icon: 'schedule' as const },
+          { key: 'Terminé' as MissionState, label: 'Terminé', color: '#27ae60', icon: 'check-circle' as const },
+        ].map((state, idx) => {
+          const isCurrent = currentState === state.key;
+          const isNext = nextState === state.key;
+          const isClickable = isNext || (currentState === null && idx === 0);
+          const isPast = idx < currentIndex;
+
+          return (
+            <TouchableOpacity
+              key={idx}
+              style={[
+                styles.pill,
+                isCurrent && [styles.pillActive, { backgroundColor: state.color }],
+                isClickable && !isCurrent && [styles.pillNext, { borderColor: state.color }],
+                isPast && styles.pillPast,
+              ]}
+              onPress={isClickable ? onStateChange : undefined}
+              disabled={!isClickable || isUpdating}
+              activeOpacity={isClickable ? 0.7 : 1}
+            >
+              <MaterialIcons
+                name={state.icon}
+                size={16}
+                color={isCurrent ? '#fff' : isClickable ? state.color : themeColors.text + '44'}
+              />
+              <Text
+                style={[
+                  styles.pillText,
+                  isCurrent && { color: '#fff', fontWeight: font.weight.bold },
+                  isClickable && !isCurrent && { color: state.color, fontWeight: font.weight.medium },
+                  isPast && { color: themeColors.text + '44' },
+                ]}
+              >
+                {state.label}
+              </Text>
+              {isUpdating && isCurrent && (
+                <ActivityIndicator size={14} color="#fff" style={{ marginLeft: 4 }} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Hint */}
+      {nextState !== null && (
+        <Text style={styles.hint}>
+          Tap "{
+            nextState === 'En cours' ? 'En cours' :
+            nextState === 'Terminé' ? 'Terminé' :
+            'À faire'
+          }" pour avancer
+        </Text>
+      )}
+      {nextState === null && (
+        <Text style={styles.hint}>
+          ✓ Mission complétée
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function createStateSegmentStyles(themeColors: ThemeColors) {
+  return StyleSheet.create({
+    wrapper: {
+      gap: spacing.sm,
+    },
+    label: {
+      fontSize: font.size.xs,
+      fontWeight: font.weight.bold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: themeColors.text + '88',
+    },
+    row: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    pill: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.md,
+      borderRadius: radius.full,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      backgroundColor: themeColors.cardBackground,
+    },
+    pillActive: {
+      borderColor: 'transparent',
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
+    pillNext: {
+      backgroundColor: themeColors.background,
+    },
+    pillPast: {
+      backgroundColor: themeColors.background,
+    },
+    pillText: {
+      fontSize: font.size.sm,
+      fontWeight: font.weight.medium,
+      flex: 1,
+      textAlign: 'center',
+    },
+    hint: {
+      fontSize: font.size.xs,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+      color: themeColors.text + '66',
+    },
+  });
+}
+
 function MetaRow({
   icon,
   label,
@@ -421,6 +620,45 @@ function createMissionDetailStyles(themeColors: ThemeColors) {
       fontSize: font.size.xl,
       fontWeight: font.weight.bold,
       color: themeColors.text,
+    },
+    stateContainer: {
+      gap: spacing.md,
+    },
+    stateBadgeDetail: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderRadius: radius.lg,
+    },
+    stateLabel: {
+      fontSize: font.size.xs,
+      fontWeight: font.weight.medium,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: spacing.xs,
+    },
+    stateValueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    stateValue: {
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+    },
+    stateNextBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
     },
     tagsRow: {
       flexDirection: 'row',

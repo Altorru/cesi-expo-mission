@@ -27,7 +27,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserPseudos, fetchUserById, type UserRecord } from '@/services/userService';
-import type { Mission, PriorityLevel } from '@/types/mission';
+import type { Mission, PriorityLevel, MissionState } from '@/types/mission';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
 
@@ -55,6 +55,14 @@ const PRIORITY_META: Record<PriorityLevel, { label: string; color: string; icon:
   Critique: { label: 'Critique',   color: '#c0392b', icon: 'priority-high' },
   Urgent:   { label: 'Urgent',     color: '#e67e22', icon: 'warning-amber' },
   Normal:   { label: 'Normal',     color: '#27ae60', icon: 'check-circle-outline' },
+};
+
+// ─── Badge État ─────────────────────────────────────────────────────────────────
+
+const STATE_META: Record<MissionState, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
+  'À faire':  { label: 'À faire',  color: '#8e44ad', icon: 'radio-button-unchecked' },
+  'En cours': { label: 'En cours',  color: '#3498db', icon: 'schedule' },
+  'Terminé':  { label: 'Terminé',   color: '#27ae60', icon: 'check-circle' },
 };
 
 // ─── Formulaire de création (modal) ──────────────────────────────────────────
@@ -352,6 +360,17 @@ export default function MissionsScreen() {
     );
   };
 
+  const StateBadge = ({ state }: { state: MissionState | null }) => {
+    if (!state || !(state in STATE_META)) return null;
+    const meta = STATE_META[state as MissionState];
+    return (
+      <View style={[styles.stateBadge, { backgroundColor: meta.color + '15' }]}>
+        <MaterialIcons name={meta.icon} size={13} color={meta.color} />
+        <Text style={[styles.stateBadgeText, { color: meta.color }]}>{meta.label}</Text>
+      </View>
+    );
+  };
+
   const MissionCard = ({ item, authorName, inCharge }: { item: Mission; authorName?: string; inCharge?: UserRecord | null }) => {
     const router = useRouter();
     return (
@@ -362,6 +381,7 @@ export default function MissionsScreen() {
         {/* Titre */}
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+          {item.state && <StateBadge state={item.state} />}
         </View>
 
         {/* Ligne 2 : catégorie + priorité */}
@@ -882,6 +902,18 @@ const createMissionsStyles = (themeColors: ReturnType<typeof getColors>) => Styl
     borderRadius: radius.full,
   },
   badgeText: {
+    fontSize: font.size.xs,
+    fontWeight: font.weight.medium,
+  },
+  stateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  stateBadgeText: {
     fontSize: font.size.xs,
     fontWeight: font.weight.medium,
   },

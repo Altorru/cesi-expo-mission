@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import type { Mission } from '@/types/mission';
+import type { Mission, MissionState } from '@/types/mission';
 
 type MissionInput = Pick<
   Mission,
-  'title' | 'description' | 'category' | 'deadline' | 'priority' | 'in_charge'
+  'title' | 'description' | 'category' | 'deadline' | 'priority' | 'state' | 'in_charge'
 >;
 
 // ─── Mettre à jour une mission ────────────────────────────────────────────────
@@ -15,6 +15,19 @@ export async function updateMission(
   const { error } = await supabase
     .from('courses')
     .update(updates)
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Mettre à jour l'état d'une mission ───────────────────────────────────────
+
+export async function updateMissionState(
+  id: string,
+  state: MissionState | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('courses')
+    .update({ state })
     .eq('id', id);
   if (error) throw new Error(error.message);
 }
