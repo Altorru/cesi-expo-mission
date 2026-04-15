@@ -129,3 +129,59 @@ export const MISSION_META_BONES = {
     { x: 60, y: 80, w: 36, h: 13, r: 3 },
   ],
 } satisfies SkeletonResult;
+
+// ─── Filtres chips (priorité) ─────────────────────────────────────────────────
+// <View style={styles.filtersWrap}> → paddingH md=16, paddingV sm=8
+// <FlatList horizontal> : 3 chips (Critique, Urgent, Normal)
+// Chaque chip :
+//   - paddingH md=16, paddingV 8
+//   - flexRow avec gap xs=4 (icône + texte)
+//   - height = 8 + 14 (icon) + 8 = 30 px
+//   - width ≈ 16 + 4 + 40 + 16 = 76 px en moyenne
+// Espace horizontal : gap xs=4 × 2 = 8 px entre 3 chips
+// Total contenu : 76 + 4 + 76 + 4 + 76 = 236 px
+// Skeleton height = 30 px (juste la hauteur de la ligne)
+
+export const FILTER_CHIPS_BONES = {
+  name: 'filter-chips',
+  viewportWidth: 375,
+  width: 343,   // 375 - 2×16
+  height: 30,
+  bones: [
+    // Chip 1 (Critique)
+    { x: 0,  y: 8, w: 68, h: 14, r: 15 },
+    // Chip 2 (Urgent)
+    { x: 76, y: 8, w: 60, h: 14, r: 15 },
+    // Chip 3 (Normal)
+    { x: 144, y: 8, w: 56, h: 14, r: 15 },
+  ],
+} satisfies SkeletonResult;
+
+// ─── Bouton de tri ────────────────────────────────────────────────────────────
+// <TouchableOpacity style={styles.sortBtn}> :
+//   - marginH md=16, marginB sm=8
+//   - flexRow avec gap xs=4 (icône sort + texte + chevron)
+//   - borderWidth 1, borderRadius md=8
+//   - paddingH md=16, paddingV 10
+// Décomposition (inside button) :
+//   - icon sort  : 16 px
+//   - gap xs=4
+//   - text       : flex=1, fontSize sm=13 → h≈15
+//   - gap xs=4
+//   - chevron    : 16 px
+// Total height = 10 + 15 + 10 = 35 px
+
+export const SORT_BUTTON_BONES = {
+  name: 'sort-button',
+  viewportWidth: 375,
+  width: 343,   // 375 - 2×16
+  height: 35,
+  bones: [
+    // icône sort (left)
+    { x: 4, y: 10, w: 16, h: 15, r: 4 },
+    // texte du tri (center, flex=1 → 70% de width)
+    { x: 28, y: 10, w: 200, h: 15, r: 4 },
+    // chevron (right)
+    { x: 319, y: 10, w: 16, h: 15, r: 4 },
+  ],
+} satisfies SkeletonResult;

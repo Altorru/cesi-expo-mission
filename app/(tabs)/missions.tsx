@@ -20,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Skeleton } from 'boneyard-js/native';
-import { MISSION_CARD_BONES } from '@/components/ui/SkeletonBones';
+import { MISSION_CARD_BONES, FILTER_CHIPS_BONES, SORT_BUTTON_BONES } from '@/components/ui/SkeletonBones';
 import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +30,22 @@ import type { Mission, PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
 import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
 
-// ─── Badge priorité ───────────────────────────────────────────────────────────
+// ─── Constantes de filtre ─────────────────────────────────────────────────────
+
+const PRIORITY_FILTERS = [
+  { value: 'Critique', label: 'Critique', color: '#c0392b', icon: 'priority-high' as const },
+  { value: 'Urgent', label: 'Urgent', color: '#e67e22', icon: 'warning-amber' as const },
+  { value: 'Normal', label: 'Normal', color: '#27ae60', icon: 'check-circle-outline' as const },
+];
+
+const SORT_OPTIONS = [
+  { value: 'date-desc', label: "Récent d'abord", icon: 'arrow-downward' as const },
+  { value: 'date-asc', label: "Ancien d'abord", icon: 'arrow-upward' as const },
+  { value: 'alphabetic-asc', label: 'A → Z', icon: 'sort-by-alpha' as const },
+  { value: 'alphabetic-desc', label: 'Z → A', icon: 'sort-by-alpha' as const },
+];
+
+// ─── Badge Badge priorité ───────────────────────────────────────────────────────────
 
 const PRIORITY_META: Record<PriorityLevel, { label: string; color: string; icon: React.ComponentProps<typeof MaterialIcons>['name'] }> = {
   Critique: { label: 'Critique',   color: '#c0392b', icon: 'priority-high' },
@@ -384,6 +399,46 @@ export default function MissionsScreen() {
   const [showCreate, setShowCreate] = React.useState(false);
   const [authorPseudos, setAuthorPseudos] = React.useState<Record<string, string>>({});
 
+  // Filtres et tri
+  const [selectedPriorities, setSelectedPriorities] = React.useState<Set<string>>(
+    new Set(['Critique', 'Urgent', 'Normal'])
+  );
+  const [filterCategory, setFilterCategory] = React.useState<string | null>(null);
+  const [filterInCharge, setFilterInCharge] = React.useState<string | null>(null);
+  const [sortBy, setSortBy] = React.useState('date-desc');
+  const [showSortModal, setShowSortModal] = React.useState(false);
+
+  // Calcul des missions filtrées et triées
+  const filteredMissions = React.useMemo(() => {
+    let result = missions;
+
+    // Appliquer les filtres
+    if (selectedPriorities.size < 3) {
+      // Si tous les filtres sont sélectionnés (size === 3), ne pas filtrer
+      result = result.filter((m) => m.priority && selectedPriorities.has(m.priority));
+    }
+    if (filterCategory) {
+      result = result.filter((m) => m.category?.toLowerCase().includes(filterCategory.toLowerCase()));
+    }
+    if (filterInCharge) {
+      result = result.filter((m) => m.in_charge === filterInCharge);
+    }
+
+    // Appliquer le tri
+    const sorted = [...result];
+    if (sortBy === 'date-desc') {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortBy === 'date-asc') {
+      sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    } else if (sortBy === 'alphabetic-asc') {
+      sorted.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === 'alphabetic-desc') {
+      sorted.sort((a, b) => b.title.localeCompare(a.title));
+    }
+
+    return sorted;
+  }, [missions, selectedPriorities, filterCategory, filterInCharge, sortBy]);
+
   React.useEffect(() => {
     if (missions.length === 0) return;
     fetchUserPseudos(missions.map((m) => m.author)).then(setAuthorPseudos);
@@ -401,15 +456,29 @@ export default function MissionsScreen() {
         <View style={styles.header}>
           <Text style={styles.screenTitle}>Missions</Text>
         </View>
+
+        {/* Squelette filtres */}
+        <View style={styles.filtersWrap}>
+          <View style={{ overflow: 'hidden', borderRadius: 12 }}>
+            <Skeleton loading initialBones={FILTER_CHIPS_BONES}>
+              <View style={{ height: FILTER_CHIPS_BONES.height }} />
+            </Skeleton>
+          </View>
+        </View>
+
+        {/* Squelette tri */}
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: 8 }}>
+          <Skeleton loading initialBones={SORT_BUTTON_BONES}>
+            <View style={{ height: SORT_BUTTON_BONES.height }} />
+          </Skeleton>
+        </View>
+
+        {/* Squelettes cartes */}
         <ScrollView contentContainerStyle={styles.list}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.cardWrapper}>
-              {/* La View card fournit fond blanc, ombre et radius.
-                  Le Skeleton anime les os intérieurs sur cette base. */}
               <View style={[styles.card, { overflow: 'hidden' }]}>
                 <Skeleton loading initialBones={MISSION_CARD_BONES}>
-                  {/* height explicite = bones.height pour que l'overlay absoluteFill ait
-                      une dimension réelle. Sans ça, containerHeight=0 → bones invisibles. */}
                   <View style={{ height: MISSION_CARD_BONES.height }} />
                 </Skeleton>
               </View>
@@ -441,10 +510,133 @@ export default function MissionsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Filtres */}
+      <View style={styles.filtersWrap}>
+        {/* Priorité */}
+        <FlatList
+          horizontal
+          data={PRIORITY_FILTERS}
+          keyExtractor={(item) => String(item.value ?? 'all')}
+          contentContainerStyle={styles.filterScroll}
+          scrollEnabled={false}
+          renderItem={({ item }) => {
+            const isSelected = item.value === null ? selectedPriorities.size === 3 : selectedPriorities.has(item.value);
+            const bgColor = item.color || colors.secondary;
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.chip,
+                  isSelected && {
+                    backgroundColor: bgColor,
+                    borderColor: bgColor,
+                  },
+                  !isSelected && {
+                    backgroundColor: bgColor + '15',
+                    borderColor: bgColor + '55',
+                  },
+                ]}
+                onPress={() => {
+                  if (item.value === null) {
+                    // "Toutes" : sélectionner toutes les priorités
+                    setSelectedPriorities(new Set(['Critique', 'Urgent', 'Normal']));
+                  } else {
+                    // Toggle la priorité
+                    const newSet = new Set(selectedPriorities);
+                    if (newSet.has(item.value)) {
+                      newSet.delete(item.value);
+                    } else {
+                      newSet.add(item.value);
+                    }
+                    setSelectedPriorities(newSet);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                {item.icon && (
+                  <MaterialIcons
+                    name={item.icon}
+                    size={14}
+                    color={isSelected ? '#fff' : bgColor}
+                    style={{ marginRight: 4 }}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: isSelected ? '#fff' : bgColor },
+                    isSelected && { fontWeight: font.weight.bold },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+
+      {/* Tri modal picker */}
+      <TouchableOpacity
+        style={styles.sortBtn}
+        onPress={() => setShowSortModal(true)}
+        activeOpacity={0.7}
+      >
+        <MaterialIcons name="sort" size={16} color={colors.primary} />
+        <Text style={styles.sortBtnText}>
+          {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Tri'}
+        </Text>
+        <MaterialIcons name="expand-more" size={16} color={colors.primary} />
+      </TouchableOpacity>
+
+      {/* Modal de tri */}
+      <Modal
+        visible={showSortModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.sortModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowSortModal(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.sortModalCard}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.sortModalTitle}>Trier les missions</Text>
+            {SORT_OPTIONS.map((option) => {
+              const selected = sortBy === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.sortModalRow, selected && styles.sortModalRowActive]}
+                  onPress={() => {
+                    setSortBy(option.value);
+                    setShowSortModal(false);
+                  }}
+                  activeOpacity={0.65}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.sortModalRowText, selected && styles.sortModalRowTextActive]}>
+                      {option.label}
+                    </Text>
+                  </View>
+                  {selected && (
+                    <MaterialIcons name="check" size={18} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <FlatList
         // 6c — changer la key force le re-mount quand numColumns change
         key={`missions-cols-${numColumns}`}
-        data={missions}
+        data={filteredMissions}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
         contentContainerStyle={styles.list}
@@ -607,6 +799,84 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
+  },
+  filtersWrap: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  filterScroll: {
+    gap: spacing.xs,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+  },
+  chipActive: {},
+  chipText: {
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
+  },
+  chipTextActive: {},
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  sortBtnText: {
+    flex: 1,
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
+    color: colors.primary,
+  },
+  sortModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sortModalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.xs,
+  },
+  sortModalTitle: {
+    fontSize: font.size.lg,
+    fontWeight: font.weight.bold,
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  sortModalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+  },
+  sortModalRowActive: {
+    backgroundColor: colors.primary + '12',
+  },
+  sortModalRowText: {
+    fontSize: font.size.md,
+    color: colors.text + 'cc',
+  },
+  sortModalRowTextActive: {
+    color: colors.primary,
+    fontWeight: font.weight.bold,
   },
 });
 
