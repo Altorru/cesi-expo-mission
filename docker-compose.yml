@@ -7,8 +7,16 @@ services:
       - /app/node_modules
     ports:
       - "8081:8081" # Port Metro Bundler
+    env_file:
+      - .env
     environment:
-      - EXPO_DEVTOOLS_LISTEN_ADDRESS=10.117.129.246
-      - REACT_NATIVE_PACKAGER_HOSTNAME=10.117.129.246
-    stdin_open: true # Permet l'interaction avec le terminal
+      # Authentification Expo en mode non-interactif (CI)
+      - EXPO_TOKEN=${EXPO_TOKEN}
+      # Variables réseau lues depuis .env via EXPO_HOST_IP
+      - EXPO_DEVTOOLS_LISTEN_ADDRESS=${EXPO_HOST_IP}
+      - REACT_NATIVE_PACKAGER_HOSTNAME=${EXPO_HOST_IP}
+      # Variables Supabase transmises au bundler Metro
+      - EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}
+      - EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
+    stdin_open: true
     tty: true

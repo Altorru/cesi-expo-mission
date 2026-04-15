@@ -23,6 +23,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect } from "react";
 import { AuthProvider } from "../src/context/AuthContext";
 import { useAuth } from "../src/context/AuthContext";
+import { initNotificationHandler } from "../src/lib/notifications";
+
+// Initialiser le handler dès le démarrage de l'app, avant tout rendu.
+initNotificationHandler();
 
 /**
  * Composant séparé car useAuth() nécessite d'être

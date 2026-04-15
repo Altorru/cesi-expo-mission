@@ -13,16 +13,29 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// Configure le comportement à la réception d'une notification (quand l'app est au premier plan)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialisation du handler — appelé une seule fois au démarrage de l'app.
+// Wrappé dans try/catch car expo-notifications jette sur Expo Go Android SDK 53+.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _handlerInitialized = false;
+
+export function initNotificationHandler(): void {
+  if (_handlerInitialized) return;
+  _handlerInitialized = true;
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.warn('[Notifications] setNotificationHandler non disponible :', e);
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5a — Demander les permissions + récupérer le token Expo Push
@@ -37,47 +50,48 @@ Notifications.setNotificationHandler({
  *  - l'utilisateur refuse la permission
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  // Les push notifications nécessitent un appareil physique
   if (!Device.isDevice) {
     console.warn('[Notifications] Push notifications uniquement sur appareil physique.');
     return null;
   }
 
-  // Vérifier les permissions existantes
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  // Demander la permission si elle n'est pas encore accordée
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  if (finalStatus !== 'granted') {
-    console.warn('[Notifications] Permission refusée par l\'utilisateur.');
+    if (finalStatus !== 'granted') {
+      console.warn('[Notifications] Permission refusée par l\'utilisateur.');
+      return null;
+    }
+
+    // Android : créer le canal de notification par défaut (requis SDK 26+)
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    const tokenResponse = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+
+    return tokenResponse.data;
+  } catch (e) {
+    console.warn('[Notifications] Impossible d\'obtenir le push token :', e);
     return null;
   }
-
-  // Récupérer le projectId (nécessaire dans Expo SDK 49+)
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId;
-
-  const tokenResponse = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined
-  );
-
-  // Android : créer le canal de notification par défaut
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-  }
-
-  return tokenResponse.data;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -167,5 +181,37 @@ export async function sendPushNotificationToAll(
     throw new Error(
       `[Notifications] Expo Push API — HTTP ${response.status} : ${text}`
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEBUG — Envoyer une notification locale immédiate (for testing)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Planifie une notification locale qui s'affiche dans 1 seconde.
+ * Utile pour tester le bon fonctionnement des notifs en dev.
+ */
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: data ?? {},
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 1,
+      },
+    });
+  } catch (e) {
+    console.warn('[Notifications] sendLocalNotification échoué :', e);
+    throw e;
   }
 }
