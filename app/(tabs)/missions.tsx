@@ -404,8 +404,7 @@ export default function MissionsScreen() {
   // 6b — 2 colonnes en paysage (> 600 px), 1 en portrait
   const numColumns = width > 600 ? 2 : 1;
 
-  const { missions, isLoading, error, refetch } = useMissions();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const { missions, isInitialLoading, isRefreshing, error, refetch } = useMissions();
   const [showCreate, setShowCreate] = React.useState(false);
   const [authorPseudos, setAuthorPseudos] = React.useState<Record<string, string>>({});
   const [userRecords, setUserRecords] = React.useState<Record<string, UserRecord>>({});
@@ -493,13 +492,11 @@ export default function MissionsScreen() {
   }, [missions]);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
     setDisplayCount(PAGE_SIZE);
-    setRefreshing(false);
+    await refetch();
   };
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
@@ -713,10 +710,10 @@ export default function MissionsScreen() {
             />
           ) : null
         }
-        // 6e — pull-to-refresh
+        // 6e — pull-to-refresh (sans interruption du contenu)
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefreshing}
             onRefresh={onRefresh}
             colors={[colors.primary]}
             tintColor={colors.primary}

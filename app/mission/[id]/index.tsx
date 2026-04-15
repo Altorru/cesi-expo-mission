@@ -125,7 +125,7 @@ export default function MissionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { mission, isLoading, error, refetch } = useMission(id);
+  const { mission, isInitialLoading, error, refetch } = useMission(id);
 
   const [modalVisible, setModalVisible] = React.useState(false);
   const [pseudos, setPseudos] = React.useState<Record<string, string>>({});
@@ -162,7 +162,7 @@ export default function MissionDetailScreen() {
     ? "S'attribuer la mission"
     : "Déjà attribuée à quelqu'un";
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
