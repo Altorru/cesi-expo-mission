@@ -69,7 +69,7 @@ function PriorityBadge({ priority }: { priority: PriorityLevel | string | null }
 
 // ─── Carte mission ────────────────────────────────────────────────────────────
 
-function MissionCard({ item, authorName }: { item: Mission; authorName?: string }) {
+function MissionCard({ item, authorName, inCharge }: { item: Mission; authorName?: string; inCharge?: UserRecord | null }) {
   const router = useRouter();
   return (
     <Pressable
@@ -99,21 +99,28 @@ function MissionCard({ item, authorName }: { item: Mission; authorName?: string 
         <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
       ) : null}
 
-      {/* Footer : auteur + deadline */}
+      {/* Footer : auteur + assignée + deadline */}
       <View style={styles.cardFooter}>
-        <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
-        <Text style={styles.cardMeta}>{authorName || '—'}</Text>
+        <View style={styles.cardFooterLeft}>
+          <View style={styles.cardFooterRow}>
+            <MaterialIcons name="person-outline" size={14} color={colors.secondary} />
+            <Text style={styles.cardMeta}>Auteur: {authorName || '—'}</Text>
+          </View>
+
+          <View style={styles.cardFooterRow}>
+            <MaterialIcons name="assignment-ind" size={14} color={colors.secondary} />
+            <Text style={styles.cardMeta}>Assignée: {inCharge?.full_name || '—'}</Text>
+          </View>
+        </View>
 
         {item.deadline ? (
-          <>
-            <MaterialIcons name="event" size={13} color={colors.secondary} style={{ marginLeft: 'auto' }} />
+          <View style={styles.cardFooterRight}>
+            <MaterialIcons name="event" size={13} color={colors.secondary} />
             <Text style={styles.cardMeta}>
               {new Date(item.deadline).toLocaleDateString('fr-FR')}
             </Text>
-          </>
-        ) : (
-          <MaterialIcons name="chevron-right" size={16} color={colors.secondary} style={{ marginLeft: 'auto' }} />
-        )}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -401,6 +408,7 @@ export default function MissionsScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [showCreate, setShowCreate] = React.useState(false);
   const [authorPseudos, setAuthorPseudos] = React.useState<Record<string, string>>({});
+  const [userRecords, setUserRecords] = React.useState<Record<string, UserRecord>>({});
 
   // Filtres et tri
   const [selectedPriorities, setSelectedPriorities] = React.useState<Set<string>>(
@@ -466,6 +474,22 @@ export default function MissionsScreen() {
   React.useEffect(() => {
     if (missions.length === 0) return;
     fetchUserPseudos(missions.map((m) => m.author)).then(setAuthorPseudos);
+    
+    // Fetch user records for in_charge field
+    const inChargeIds = missions
+      .map((m) => m.in_charge)
+      .filter((id): id is string => id !== null && id !== undefined);
+    
+    if (inChargeIds.length > 0) {
+      Promise.all(inChargeIds.map((id) => fetchUserById(id))).then((users) => {
+        const recordMap = Object.fromEntries(
+          users
+            .filter((user): user is UserRecord => user !== null)
+            .map((user) => [user.id, user])
+        );
+        setUserRecords(recordMap);
+      });
+    }
   }, [missions]);
 
   const onRefresh = async () => {
@@ -668,7 +692,7 @@ export default function MissionsScreen() {
         columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
         renderItem={({ item }) => (
           <View style={[styles.cardWrapper, numColumns > 1 && styles.cardWrapperMulti]}>
-            <MissionCard item={item} authorName={item.author ? authorPseudos[item.author] : undefined} />
+            <MissionCard item={item} authorName={item.author ? authorPseudos[item.author] : undefined} inCharge={item.in_charge ? userRecords[item.in_charge] : undefined} />
           </View>
         )}
         ListEmptyComponent={
@@ -800,9 +824,24 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  cardFooterLeft: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  cardFooterRight: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginTop: spacing.xs,
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   cardMeta: {
     fontSize: font.size.xs,
