@@ -23,9 +23,10 @@ import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { fetchUserPseudos } from '@/services/userService';
+import { fetchUserPseudos, type UserRecord } from '@/services/userService';
 import type { Mission, PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
+import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
 
 // ─── Badge priorité ───────────────────────────────────────────────────────────
 
@@ -126,6 +127,8 @@ function CreateMissionModal({
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
+  const [inCharge, setInCharge] = React.useState<UserRecord | null>(null);
+  const [showUserPicker, setShowUserPicker] = React.useState(false);
 
   const deadlineDate = values.deadline ? new Date(values.deadline) : new Date();
 
@@ -148,6 +151,7 @@ function CreateMissionModal({
       category: values.category.trim() || null,
       deadline: values.deadline || null,   // déjà au format AAAA-MM-JJ
       priority: values.priority || null,
+      in_charge: inCharge?.id ?? null,
       author: user?.id ?? null,
     });
     setSubmitting(false);
@@ -155,7 +159,8 @@ function CreateMissionModal({
       setError(sbError.message);
       return;
     }
-    await clearDraft(); // 4c — effacer après soumission
+    await clearDraft();
+    setInCharge(null);
     onCreated();
     onClose();
   };
@@ -296,6 +301,47 @@ function CreateMissionModal({
             )}
 
             {error ? <Text style={modal.error}>{error}</Text> : null}
+
+            {/* Assigné à */}
+            <Text style={modal.label}>Assigné à</Text>
+            <TouchableOpacity
+              style={modal.selectBtn}
+              onPress={() => setShowUserPicker(true)}
+              activeOpacity={0.7}
+            >
+              {inCharge ? (
+                <>
+                  <UserAvatar user={inCharge} size={32} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={modal.selectBtnName} numberOfLines={1}>
+                      {inCharge.full_name || inCharge.email?.split('@')[0] || '—'}
+                    </Text>
+                    {inCharge.email ? (
+                      <Text style={modal.selectBtnEmail} numberOfLines={1}>{inCharge.email}</Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setInCharge(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons name="close" size={16} color={colors.secondary} />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <MaterialIcons name="person-add-alt" size={20} color={colors.secondary} />
+                  <Text style={modal.selectBtnPlaceholder}>Assigner à un utilisateur</Text>
+                  <MaterialIcons name="chevron-right" size={18} color={colors.secondary + '88'} />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <UserPickerModal
+              visible={showUserPicker}
+              selectedId={inCharge?.id ?? null}
+              onSelect={setInCharge}
+              onClose={() => setShowUserPicker(false)}
+            />
 
             <TouchableOpacity
               style={[modal.submitBtn, submitting && modal.submitBtnDisabled]}
@@ -667,5 +713,31 @@ const modal = StyleSheet.create({
     color: '#fff',
     fontSize: font.size.md,
     fontWeight: font.weight.bold,
+  },
+  selectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.secondary + '55',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    minHeight: 52,
+  },
+  selectBtnName: {
+    fontSize: font.size.md,
+    fontWeight: font.weight.medium,
+    color: colors.text,
+  },
+  selectBtnEmail: {
+    fontSize: font.size.xs,
+    color: colors.secondary,
+    marginTop: 1,
+  },
+  selectBtnPlaceholder: {
+    flex: 1,
+    fontSize: font.size.md,
+    color: colors.text + '66',
   },
 });

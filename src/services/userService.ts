@@ -4,20 +4,31 @@
  * Requiert la vue suivante dans Supabase (SQL Editor) :
  *
  *   create or replace view public.users_view as
- *     select id, raw_user_meta_data->>'full_name' as full_name
+ *     select id,
+ *       raw_user_meta_data->>'full_name' as full_name,
+ *       email
  *     from auth.users;
  *
  *   grant select on public.users_view to authenticated;
  */
 import { supabase } from '@/lib/supabase';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface UserRecord {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 /** Cache mémoire pour éviter les requêtes répétées dans la session */
 const cache: Record<string, string> = {};
+
+// ─── fetchUserPseudos ─────────────────────────────────────────────────────────
 
 /**
  * Résout une liste d'UUIDs vers un record { uuid: full_name }.
  * Les IDs déjà en cache ne sont pas re-fetchés.
- * Retourne une chaîne vide pour les utilisateurs sans nom.
  */
 export async function fetchUserPseudos(
   ids: (string | null | undefined)[],
@@ -34,11 +45,33 @@ export async function fetchUserPseudos(
     for (const row of data ?? []) {
       cache[row.id] = (row.full_name as string | null) ?? '';
     }
-    // Marquer les IDs sans résultat pour ne plus les requêter
     for (const id of missing) {
       if (!(id in cache)) cache[id] = '';
     }
   }
 
   return Object.fromEntries(unique.map((id) => [id, cache[id] ?? '']));
+}
+
+// ─── fetchAllUsers ────────────────────────────────────────────────────────────
+
+/** Retourne tous les utilisateurs triés par full_name (pour le picker). */
+export async function fetchAllUsers(): Promise<UserRecord[]> {
+  const { data } = await supabase
+    .from('users_view')
+    .select('id, full_name, email')
+    .order('full_name', { ascending: true, nullsFirst: false });
+  return (data as UserRecord[]) ?? [];
+}
+
+// ─── fetchUserById ────────────────────────────────────────────────────────────
+
+/** Résout un UUID unique vers un UserRecord (utilisé pour pré-remplir le picker). */
+export async function fetchUserById(id: string): Promise<UserRecord | null> {
+  const { data } = await supabase
+    .from('users_view')
+    .select('id, full_name, email')
+    .eq('id', id)
+    .single();
+  return (data as UserRecord | null) ?? null;
 }

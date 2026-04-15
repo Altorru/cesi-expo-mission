@@ -3,7 +3,7 @@ import type { Mission } from '@/types/mission';
 
 type MissionInput = Pick<
   Mission,
-  'title' | 'description' | 'category' | 'deadline' | 'priority'
+  'title' | 'description' | 'category' | 'deadline' | 'priority' | 'in_charge'
 >;
 
 // ─── Mettre à jour une mission ────────────────────────────────────────────────

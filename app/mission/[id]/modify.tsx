@@ -28,6 +28,7 @@ export default function ModifyMissionScreen() {
         category:    values.category.trim() || null,
         deadline:    values.deadline || null,
         priority:    (values.priority as PriorityLevel) || null,
+        in_charge:   values.in_charge,
       });
       router.back();
     } catch (e: unknown) {
@@ -54,6 +55,7 @@ export default function ModifyMissionScreen() {
         category:    mission?.category ?? '',
         deadline:    mission?.deadline ? mission.deadline.slice(0, 10) : '',
         priority:    (mission?.priority as PriorityLevel) ?? '',
+        in_charge:   mission?.in_charge ?? null,
       }}
       saving={saving}
       serverError={errorMsg}

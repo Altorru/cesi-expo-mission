@@ -16,6 +16,8 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { MaterialIcons } from '@expo/vector-icons';
 import type { PriorityLevel } from '@/types/mission';
 import { colors, spacing, radius, font } from '@/styles/theme';
+import { fetchUserById, type UserRecord } from '@/services/userService';
+import UserPickerModal, { UserAvatar } from '@/components/ui/UserPickerModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ export interface MissionFormValues {
   category: string;
   deadline: string;
   priority: PriorityLevel | '';
+  in_charge: string | null;
 }
 
 interface MissionFormProps {
@@ -59,6 +62,9 @@ export default function MissionForm({
   const [priority, setPriority]       = React.useState<PriorityLevel | ''>(initialValues.priority ?? '');
   const [localError, setLocalError]   = React.useState('');
   const [showDatePicker, setShowDatePicker] = React.useState(false);
+  const [inCharge, setInCharge]         = React.useState<string | null>(initialValues.in_charge ?? null);
+  const [inChargeUser, setInChargeUser] = React.useState<UserRecord | null>(null);
+  const [showUserPicker, setShowUserPicker] = React.useState(false);
 
   // Sync quand le parent charge les données en async (cas modify)
   React.useEffect(() => {
@@ -67,6 +73,12 @@ export default function MissionForm({
     if (initialValues.category !== undefined)    setCategory(initialValues.category);
     if (initialValues.deadline !== undefined)    setDeadline(initialValues.deadline);
     if (initialValues.priority !== undefined)    setPriority(initialValues.priority);
+    if (initialValues.in_charge !== undefined) {
+      const id = initialValues.in_charge ?? null;
+      setInCharge(id);
+      if (id) fetchUserById(id).then((u) => setInChargeUser(u ?? null));
+      else setInChargeUser(null);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     initialValues.title,
@@ -74,6 +86,7 @@ export default function MissionForm({
     initialValues.category,
     initialValues.deadline,
     initialValues.priority,
+    initialValues.in_charge,
   ]);
 
   const deadlineDate = deadline ? new Date(deadline) : new Date();
@@ -92,7 +105,7 @@ export default function MissionForm({
   const handleSubmit = () => {
     if (!title.trim()) { setLocalError('Le titre est obligatoire.'); return; }
     setLocalError('');
-    onSubmit({ title, description, category, deadline, priority });
+    onSubmit({ title, description, category, deadline, priority, in_charge: inCharge });
   };
 
   return (
@@ -259,6 +272,50 @@ export default function MissionForm({
               />
             )
           )}
+
+          {/* Assigné à */}
+          <Text style={styles.label}>Assigné à</Text>
+          <TouchableOpacity
+            style={styles.selectBtn}
+            onPress={() => setShowUserPicker(true)}
+            activeOpacity={0.7}
+          >
+            {inChargeUser ? (
+              <>
+                <UserAvatar user={inChargeUser} size={32} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.selectBtnName} numberOfLines={1}>
+                    {inChargeUser.full_name || inChargeUser.email?.split('@')[0] || '—'}
+                  </Text>
+                  {inChargeUser.email ? (
+                    <Text style={styles.selectBtnEmail} numberOfLines={1}>{inChargeUser.email}</Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  onPress={() => { setInCharge(null); setInChargeUser(null); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <MaterialIcons name="close" size={16} color={colors.secondary} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="person-add-alt" size={20} color={colors.secondary} />
+                <Text style={styles.selectBtnPlaceholder}>Assigner à un utilisateur</Text>
+                <MaterialIcons name="chevron-right" size={18} color={colors.secondary + '88'} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <UserPickerModal
+            visible={showUserPicker}
+            selectedId={inCharge}
+            onSelect={(user) => {
+              setInCharge(user?.id ?? null);
+              setInChargeUser(user);
+            }}
+            onClose={() => setShowUserPicker(false)}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -372,6 +429,32 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     fontSize: font.size.sm,
     flex: 1,
+  },
+  selectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.secondary + '55',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    minHeight: 52,
+  },
+  selectBtnName: {
+    fontSize: font.size.md,
+    fontWeight: font.weight.medium,
+    color: colors.text,
+  },
+  selectBtnEmail: {
+    fontSize: font.size.xs,
+    color: colors.secondary,
+    marginTop: 1,
+  },
+  selectBtnPlaceholder: {
+    flex: 1,
+    fontSize: font.size.md,
+    color: colors.text + '66',
   },
 });
 
