@@ -18,13 +18,16 @@ import {
   MISSION_META_BONES,
 } from '@/components/ui/SkeletonBones';
 import { MissionNotificationPanel } from '@/components/features/MissionNotificationPanel';
+import { CommentsList } from '@/components/features/CommentsList';
+import { CommentInput } from '@/components/features/CommentInput';
 import { useMission } from '@/hooks/useMissions';
+import { useComments } from '@/hooks/useComments';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserPseudos } from '@/services/userService';
 import { updateMissionState } from '@/services/missionService';
-import type { PriorityLevel, MissionState } from '@/types/mission';
+import type { PriorityLevel, MissionState, Comment } from '@/types/mission';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 
 // ─── Badge priorité ────────────────────────────────────────────────────────────
@@ -170,9 +173,18 @@ export default function MissionDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { mission, isInitialLoading, error, refetch } = useMission(id);
+  const {
+    comments,
+    isLoading: commentsLoading,
+    hasMore: commentsHasMore,
+    loadMore: loadMoreComments,
+    addCommentOptimistic,
+    deleteCommentOptimistic,
+  } = useComments({ courseId: id, enabled: !isInitialLoading });
 
   const [modalVisible, setModalVisible] = React.useState(false);
   const [pseudos, setPseudos] = React.useState<Record<string, string>>({});
+  const [commentError, setCommentError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!mission) return;
@@ -386,6 +398,37 @@ export default function MissionDetailScreen() {
           missionId={mission.id}
           missionTitle={mission.title}
         />
+
+        {/* Section Commentaires */}
+        <View>
+          <Text style={styles.commentsTitle}>Commentaires</Text>
+          <View style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
+            <CommentsList
+              comments={comments}
+              isLoading={commentsLoading}
+              hasMore={commentsHasMore}
+              onLoadMore={loadMoreComments}
+              currentUserId={user?.id || ''}
+              onCommentDeleted={deleteCommentOptimistic}
+            />
+          </View>
+          {commentError && (
+            <View style={styles.errorBanner}>
+              <MaterialIcons name="error-outline" size={16} color="#c0392b" />
+              <Text style={styles.errorBannerText}>{commentError}</Text>
+            </View>
+          )}
+          <CommentInput
+            courseId={mission.id}
+            userId={user?.id || ''}
+            onCommentAdded={(comment) => {
+              addCommentOptimistic(comment);
+              setCommentError(null);
+            }}
+            onError={setCommentError}
+            disabled={isInitialLoading}
+          />
+        </View>
 
         {/* Bouton d'attribution conditionnel */}
         <TouchableOpacity
@@ -723,6 +766,30 @@ function createMissionDetailStyles(themeColors: ThemeColors) {
       color: '#fff',
       fontSize: font.size.md,
       fontWeight: font.weight.bold,
+    },
+    commentsTitle: {
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+      color: themeColors.text,
+      marginBottom: spacing.xs,
+    },
+    errorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: '#c0392b' + '15',
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginBottom: spacing.md,
+      borderLeftWidth: 3,
+      borderLeftColor: '#c0392b',
+    },
+    errorBannerText: {
+      flex: 1,
+      fontSize: font.size.sm,
+      color: '#c0392b',
+      fontFamily: font.family.regular,
     },
     center: {
       flex: 1,

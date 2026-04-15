@@ -60,6 +60,10 @@ export const radius = {
 } as const;
 
 export const font = {
+  family: {
+    regular: undefined,  // Utilise la police système native
+    semibold: undefined, // Utilise la police système native
+  },
   size: {
     xs:   11,
     sm:   13,
@@ -71,6 +75,7 @@ export const font = {
     regular: '400' as const,
     medium:  '500' as const,
     bold:    '600' as const,
+    semibold: '600' as const,
   },
 }
 
