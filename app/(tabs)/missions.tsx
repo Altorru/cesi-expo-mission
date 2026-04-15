@@ -19,6 +19,8 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Skeleton } from 'boneyard-js/native';
+import { MISSION_CARD_BONES } from '@/components/ui/SkeletonBones';
 import { useMissions } from '@/hooks/useMissions';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/context/AuthContext';
@@ -389,7 +391,24 @@ export default function MissionsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1 }} />
+        <View style={styles.header}>
+          <Text style={styles.screenTitle}>Missions</Text>
+        </View>
+        <ScrollView contentContainerStyle={styles.list}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} style={styles.cardWrapper}>
+              {/* La View card fournit fond blanc, ombre et radius.
+                  Le Skeleton anime les os intérieurs sur cette base. */}
+              <View style={[styles.card, { overflow: 'hidden' }]}>
+                <Skeleton loading initialBones={MISSION_CARD_BONES}>
+                  {/* height explicite = bones.height pour que l'overlay absoluteFill ait
+                      une dimension réelle. Sans ça, containerHeight=0 → bones invisibles. */}
+                  <View style={{ height: MISSION_CARD_BONES.height }} />
+                </Skeleton>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       </SafeAreaView>
     );
   }

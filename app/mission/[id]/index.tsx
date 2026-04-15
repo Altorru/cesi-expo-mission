@@ -11,6 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Skeleton } from 'boneyard-js/native';
+import {
+  MISSION_HEADER_BONES,
+  MISSION_DESC_BONES,
+  MISSION_META_BONES,
+} from '@/components/ui/SkeletonBones';
 import { useMission } from '@/hooks/useMissions';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -158,7 +164,38 @@ export default function MissionDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1 }} />
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Détail</Text>
+          <View style={{ width: 64 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* Titre + chips — les 2 premiers enfants du vrai ScrollView regroupés */}
+          <Skeleton loading initialBones={MISSION_HEADER_BONES}>
+            <View style={{ height: MISSION_HEADER_BONES.height }} />
+          </Skeleton>
+
+          {/* Section description */}
+          <Skeleton loading initialBones={MISSION_DESC_BONES}>
+            <View style={{ height: MISSION_DESC_BONES.height }} />
+          </Skeleton>
+
+          {/* Meta-card : la View fournit fond blanc + ombre + radius */}
+          <View style={[styles.metaCard, { overflow: 'hidden' }]}>
+            <Skeleton loading initialBones={MISSION_META_BONES}>
+              <View style={{ height: MISSION_META_BONES.height }} />
+            </Skeleton>
+          </View>
+
+          {/* Bouton assignation — rendu directement comme View colorée */}
+          <View style={[styles.assignBtn, { backgroundColor: colors.primary + '55' }]} />
+        </ScrollView>
       </SafeAreaView>
     );
   }
