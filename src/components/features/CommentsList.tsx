@@ -13,13 +13,25 @@ import type { Comment } from '@/types/mission';
 import { useTheme } from '@/context/ThemeContext';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 
-interface CommentsListProps {
-  comments: Comment[];
-  isLoading: boolean;
-  hasMore: boolean;
-  onLoadMore: () => Promise<void>;
-  currentUserId: string;
-  onCommentDeleted?: (commentId: string) => Promise<void>;
+/** Utilitaire: génère initiales + couleur de fond basée sur l'utilisateur */
+function getUserBadge(
+  authorName: string,
+  authorId: string
+): { initials: string; backgroundColor: string } {
+  const initials = authorName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const colors = ['#d4a5e8', '#b896d6', '#3498db', '#27ae60', '#e67e22'];
+  const hash = authorId
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const backgroundColor = colors[hash % colors.length];
+
+  return { initials, backgroundColor };
 }
 
 function formatDate(isoString: string): string {
@@ -45,6 +57,15 @@ function formatDate(isoString: string): string {
   }
 }
 
+interface CommentsListProps {
+  comments: Comment[];
+  isLoading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => Promise<void>;
+  currentUserId: string;
+  onCommentDeleted?: (commentId: string) => Promise<void>;
+}
+
 function CommentItem({
   comment,
   isAuthor,
@@ -58,6 +79,10 @@ function CommentItem({
 }) {
   const styles = createCommentItemStyles(colors);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const { initials, backgroundColor } = getUserBadge(
+    comment.author_name || 'User',
+    comment.author
+  );
 
   const handleDelete = () => {
     Alert.alert(
@@ -86,30 +111,44 @@ function CommentItem({
 
   return (
     <View style={styles.container}>
-      {/* Header : pseudo + date */}
+      {/* Header avec avatar + infos */}
       <View style={styles.header}>
-        <Text style={styles.author}>{comment.author_name || 'Utilisateur'}</Text>
-        <Text style={styles.date}>{formatDate(comment.created_at)}</Text>
+        <View style={[styles.avatar, { backgroundColor }]}>
+          <Text style={styles.avatarText}>{initials}</Text>
+        </View>
+
+        <View style={styles.headerInfo}>
+          <View style={styles.authorRow}>
+            <Text style={styles.author}>
+              {comment.author_name || 'Utilisateur'}
+            </Text>
+            {isAuthor && (
+              <View style={styles.youBadge}>
+                <Text style={styles.youBadgeText}>Vous</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.date}>{formatDate(comment.created_at)}</Text>
+        </View>
+
+        {isAuthor && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={handleDelete}
+            disabled={isDeleting}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#c0392b" />
+            ) : (
+              <MaterialIcons name="delete-outline" size={16} color="#c0392b" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Texte du commentaire */}
       <Text style={styles.text}>{comment.comment}</Text>
-
-      {/* Bouton supprimer si auteur */}
-      {isAuthor && (
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={handleDelete}
-          disabled={isDeleting}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          {isDeleting ? (
-            <ActivityIndicator size="small" color="#c0392b" />
-          ) : (
-            <MaterialIcons name="delete-outline" size={16} color="#c0392b" />
-          )}
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -241,32 +280,67 @@ const createCommentItemStyles = (colors: ReturnType<typeof getColors>) =>
       padding: spacing.md,
       borderWidth: 1,
       borderColor: colors.border,
+      gap: spacing.sm,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
     },
     header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
+    avatar: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.full,
       alignItems: 'center',
-      marginBottom: spacing.sm,
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+    },
+    avatarText: {
+      fontSize: font.size.xs,
+      fontWeight: font.weight.bold,
+      color: '#fff',
+    },
+    headerInfo: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    authorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
     author: {
       fontSize: font.size.sm,
-      fontFamily: font.family.semibold,
+      fontWeight: font.weight.semibold,
       color: colors.text,
+    },
+    youBadge: {
+      backgroundColor: colors.primary + '22',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radius.sm,
+    },
+    youBadgeText: {
+      fontSize: 10,
+      fontWeight: font.weight.bold,
+      color: colors.primary,
     },
     date: {
       fontSize: font.size.xs,
       color: colors.textSecondary,
-      fontFamily: font.family.regular,
+    },
+    deleteBtn: {
+      padding: spacing.xs,
     },
     text: {
       fontSize: font.size.sm,
-      fontFamily: font.family.regular,
       color: colors.text,
       lineHeight: 20,
-      marginBottom: spacing.sm,
-    },
-    deleteBtn: {
-      alignSelf: 'flex-start',
-      padding: spacing.xs,
+      marginLeft: 36 + spacing.sm,
     },
   });

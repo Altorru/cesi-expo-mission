@@ -25,6 +25,8 @@ export default function CreateMissionScreen() {
         deadline:    values.deadline || null,
         priority:    (values.priority as PriorityLevel) || null,
         author:      user?.id ?? null,
+        in_charge:   null,
+        state:       null,
       });
       router.replace('/(tabs)/missions');
     } catch (e: unknown) {
