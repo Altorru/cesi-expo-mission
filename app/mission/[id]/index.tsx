@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -253,8 +255,15 @@ export default function MissionDetailScreen() {
 
       {/* Contenu Onglet Commentaires */}
       {activeTab === 'comments' && (
-        <View style={styles.commentsTabContainer}>
-          <ScrollView contentContainerStyle={styles.commentsContent}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.commentsTabContainer}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            contentContainerStyle={styles.commentsContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {commentError && (
               <View style={styles.errorBanner}>
                 <MaterialIcons name="error-outline" size={16} color="#c0392b" />
@@ -271,7 +280,7 @@ export default function MissionDetailScreen() {
             />
           </ScrollView>
 
-          {/* Input commentaire au bottom */}
+          {/* Input commentaire au bottom - reste visible avec le clavier */}
           <CommentInput
             courseId={mission!.id}
             userId={user?.id || ''}
@@ -283,7 +292,7 @@ export default function MissionDetailScreen() {
             onError={setCommentError}
             disabled={isInitialLoading}
           />
-        </View>
+        </KeyboardAvoidingView>
       )}
 
       {/* Modal Assignation */}

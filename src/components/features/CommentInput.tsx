@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createComment } from '@/services/commentService';
@@ -82,65 +80,60 @@ export function CommentInput({
   const isOverLimit = charCount > 500;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 0 }}
-    >
-      <View style={styles.container}>
-        {/* Barre de saisie */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Ajouter un commentaire…"
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            maxLength={500}
-            numberOfLines={3}
-            editable={!disabled && !isSubmitting}
-            value={text}
-            onChangeText={setText}
-          />
+    <View style={styles.container}>
+      {/* Barre de saisie */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ajouter un commentaire…"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          maxLength={500}
+          numberOfLines={3}
+          editable={!disabled && !isSubmitting}
+          value={text}
+          onChangeText={setText}
+        />
 
-          {/* Bouton d'envoi */}
-          <TouchableOpacity
-            style={[
-              styles.submitBtn,
-              {
-                opacity:
-                  isSubmitting || !text.trim() || isOverLimit || disabled ? 0.5 : 1,
-              },
-            ]}
-            onPress={handleSubmit}
-            disabled={isSubmitting || !text.trim() || isOverLimit || disabled}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <MaterialIcons
-                name="send"
-                size={20}
-                color={colors.primary}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Indicateur de caractères */}
-        <View style={styles.footerRow}>
-          <Text
-            style={[
-              styles.charCount,
-              {
-                color: isOverLimit ? '#c0392b' : colors.textSecondary,
-              },
-            ]}
-          >
-            {charCount}/500
-          </Text>
-        </View>
+        {/* Bouton d'envoi */}
+        <TouchableOpacity
+          style={[
+            styles.submitBtn,
+            {
+              opacity:
+                isSubmitting || !text.trim() || isOverLimit || disabled ? 0.5 : 1,
+            },
+          ]}
+          onPress={handleSubmit}
+          disabled={isSubmitting || !text.trim() || isOverLimit || disabled}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <MaterialIcons
+              name="send"
+              size={20}
+              color={colors.primary}
+            />
+          )}
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Indicateur de caractères */}
+      <View style={styles.footerRow}>
+        <Text
+          style={[
+            styles.charCount,
+            {
+              color: isOverLimit ? '#c0392b' : colors.textSecondary,
+            },
+          ]}
+        >
+          {charCount}/500
+        </Text>
+      </View>
+    </View>
   );
 }
 
