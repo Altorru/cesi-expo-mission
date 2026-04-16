@@ -47,14 +47,13 @@ export function initNotificationHandler(): void {
  * son Expo Push Token (ex: "ExponentPushToken[xxxxxx]").
  *
  * Retourne null si :
- *  - on n'est pas sur un appareil physique (simulateur)
  *  - l'utilisateur refuse la permission
+ *  - la requête du token échoue
+ * 
+ * Note: En développement, les tokens sont générés aussi sur simulateur/émulateur.
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Device.isDevice) {
-    console.warn('[Notifications] Push notifications uniquement sur appareil physique.');
-    return null;
-  }
+  console.log('[Notifications] 🔍 Device.isDevice:', Device.isDevice, '| Platform:', Platform.OS);
 
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -72,25 +71,40 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     // Android : créer le canal de notification par défaut (requis SDK 26+)
     if (Platform.OS === 'android') {
+      console.log('[Notifications] 📢 Création du canal Android...');
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF231F7C',
       });
+      console.log('[Notifications] ✅ Canal Android créé');
     }
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
       Constants.easConfig?.projectId;
+    
+    console.log('[Notifications] 🔑 ProjectId:', projectId);
+    console.log('[Notifications] � Requesting Expo Push Token (NOT Firebase) with projectId:', projectId);
 
-    const tokenResponse = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
+    if (!projectId) {
+      throw new Error('[Notifications] No projectId found for Expo Push Notifications');
+    }
 
+    console.log('[Notifications] 🔄 Appel à getExpoPushTokenAsync avec projectId...');
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId,
+      // expireIn: 86400 * 7, // Optionally set token expiration (in seconds)
+    });
+    
+    console.log('[Notifications] ✅ Token Expo obtenu:', tokenResponse.data?.substring(0, 40) + '...');
     return tokenResponse.data;
   } catch (e) {
-    console.warn('[Notifications] Impossible d\'obtenir le push token :', e);
+    const errorMessage = (e as any)?.message || JSON.stringify(e);
+    console.warn('[Notifications] ⚠️ Push token failed (Firebase might not be initialized)');
+    console.warn('[Notifications] Details:', errorMessage);
+    console.warn('[Notifications] 💡 On Android, push tokens require Firebase. This is expected in emulator/dev.');
     return null;
   }
 }

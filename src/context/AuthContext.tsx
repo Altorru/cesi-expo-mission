@@ -23,7 +23,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 1. Demander les permissions et récupérer le token
       const token = await registerForPushNotificationsAsync();
       if (!token) {
-        console.log('[AuthContext] ⚠️ Aucun token obtenu (simulateur ou permission refusée).');
+        console.log('[AuthContext] ℹ️ Pas de token push (normal en dev/emulator sans Firebase).');
+        // Continue sans le token - l'app fonctionne quand même
         return;
       }
 

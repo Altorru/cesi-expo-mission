@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "temp-project",
-    "slug": "cesi-missions",
+    "name": "CESI Missions",
+    "slug": "expocesi",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "temp-project",
+    "scheme": "expocesi",
     "linking": {
-      "prefixes": ["temp-project://", "exp+cesi-missions://"],
+      "prefixes": ["expocesi://"],
       "config": {
         "screens": {
           "(tabs)": {
@@ -39,14 +39,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tempproject.app"
+      "bundleIdentifier": "com.cesi.missions.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.tempproject.app"
+      "package": "com.cesi.missions.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -72,9 +72,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "470f9794-35a9-4097-8552-44b281fd2ec3"
+        "projectId": "d4437e94-113d-4dfc-b9de-cc75e17298b2"
       }
     },
-    "owner": "altorru"
+    "owner": "octokling"
   }
 }
