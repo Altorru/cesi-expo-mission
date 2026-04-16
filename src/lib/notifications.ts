@@ -2,16 +2,16 @@
  * notifications.ts — Push Notifications avec Expo Go
  *
  * Ce module gère le cycle complet des notifications push :
- *  5a → Demande de permission + récupération du token Expo Push
- *  5b → Sauvegarde du token dans Supabase (table profiles, colonne push_token)
- *  5c → Récupération de tous les tokens + envoi batch à l'API Expo
+ *  a) Demande de permission + récupération du token Expo Push
+ *  b) Sauvegarde du token dans Supabase (table user_push_tokens)
+ *  c) Récupération de tous les tokens + envoi batch à l'API Expo
  */
 
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { supabase } from './supabase';
+import { savePushToken, getAllPushTokens } from '@/services/pushTokenService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Initialisation du handler — appelé une seule fois au démarrage de l'app.
@@ -38,7 +38,7 @@ export function initNotificationHandler(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5a — Demander les permissions + récupérer le token Expo Push
+// a) Demander les permissions + récupérer le token Expo Push
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -95,30 +95,26 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5b — Sauvegarder le token dans Supabase (colonne push_token)
+// b) Sauvegarder le token dans Supabase (table user_push_tokens)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Upsert le push_token de l'utilisateur dans la table `profiles`.
+ * Sauvegarde le token Expo Push d'un utilisateur dans la table user_push_tokens.
+ * Délègue à pushTokenService.savePushToken() pour la gestion réelle.
  *
  * @param userId  L'UUID de l'utilisateur (auth.users.id)
  * @param token   Le token Expo Push retourné par registerForPushNotificationsAsync
+ * @throws {Error} Si la sauvegarde échoue
  */
 export async function savePushTokenToSupabase(
   userId: string,
   token: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
-    .upsert({ id: userId, push_token: token }, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`[Notifications] Échec de la sauvegarde du token : ${error.message}`);
-  }
+  await savePushToken(userId, token);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5c — Récupérer tous les tokens et envoyer un batch à l'API Expo
+// c) Récupérer tous les tokens et envoyer un batch à l'API Expo
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PushPayload {
@@ -128,59 +124,57 @@ export interface PushPayload {
 }
 
 /**
- * Récupère tous les push_tokens enregistrés dans Supabase
- * puis envoie une notification push à tous les utilisateurs
- * via l'API Expo en une seule requête batch.
+ * Récupère tous les tokens enregistrés via user_push_tokens
+ * puis envoie une notification push batch à tous via l'API Expo.
+ *
+ * ⚠️ À faire côté serveur (Backend API) pour des raisons de sécurité.
+ * Les permissions Supabase côté client ne permettent pas l'accès à getAllPushTokens.
  *
  * @param payload  Le contenu de la notification (titre, corps, data optionnelle)
+ * @throws {Error} Si l'envoi échoue
  */
 export async function sendPushNotificationToAll(
   payload: PushPayload
 ): Promise<void> {
-  // Récupérer tous les tokens non-nuls depuis Supabase
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('push_token')
-    .not('push_token', 'is', null);
+  try {
+    const tokens = await getAllPushTokens();
 
-  if (error) {
-    throw new Error(`[Notifications] Erreur Supabase lors de la récupération des tokens : ${error.message}`);
-  }
+    if (tokens.length === 0) {
+      console.warn('[Notifications] Aucun token enregistré, aucune notification envoyée.');
+      return;
+    }
 
-  const tokens = (profiles ?? [])
-    .map((p: { push_token: string | null }) => p.push_token)
-    .filter((t): t is string => Boolean(t));
+    // Construire les messages au format Expo
+    const messages = tokens.map((to) => ({
+      to,
+      title: payload.title,
+      body: payload.body,
+      data: payload.data ?? {},
+      sound: 'default' as const,
+    }));
 
-  if (tokens.length === 0) {
-    console.warn('[Notifications] Aucun token enregistré, aucune notification envoyée.');
-    return;
-  }
+    // Envoi batch vers l'API Expo
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+      },
+      body: JSON.stringify(messages),
+    });
 
-  // Construire les messages au format Expo
-  const messages = tokens.map((to) => ({
-    to,
-    title: payload.title,
-    body: payload.body,
-    data: payload.data ?? {},
-    sound: 'default' as const,
-  }));
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `[Notifications] Expo Push API — HTTP ${response.status} : ${text}`
+      );
+    }
 
-  // Envoi batch vers l'API Expo
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'Accept-Encoding': 'gzip, deflate',
-    },
-    body: JSON.stringify(messages),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `[Notifications] Expo Push API — HTTP ${response.status} : ${text}`
-    );
+    console.log(`[Notifications] ${tokens.length} notification(s) envoyée(s) avec succès.`);
+  } catch (e) {
+    console.error('[Notifications] Erreur lors de l\'envoi batch :', e);
+    throw e;
   }
 }
 
