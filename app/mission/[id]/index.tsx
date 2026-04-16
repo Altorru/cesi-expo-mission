@@ -94,7 +94,7 @@ export default function MissionDetailScreen() {
       if (user?.id) {
         const modifierUser = await fetchUserById(user.id);
         const modifierName = modifierUser?.full_name || 'Un utilisateur';
-        await notifyMissionModified(mission.title, id, modifierName, 'state-changed');
+        await notifyMissionModified(mission.title, id, modifierName, 'state-changed', user.id);
       }
     } catch (err) {
       console.error('Erreur changement état:', err);

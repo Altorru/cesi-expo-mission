@@ -9,6 +9,7 @@
  * Utilise l'API Expo Push pour envoyer à tous les tokens enregistrés.
  */
 
+import * as Notifications from 'expo-notifications';
 import { supabase } from '@/lib/supabase';
 import type { Mission, Comment } from '@/types/mission';
 
@@ -39,13 +40,21 @@ interface NotificationData {
 /**
  * Récupère tous les tokens enregistrés depuis la table user_push_tokens.
  * Exclut les tokens défaillants ou périmés.
+ * 
+ * @param excludeUserId - ID d'un utilisateur à exclure (optionnel)
  */
-async function getAllPushTokens(): Promise<string[]> {
+async function getAllPushTokens(excludeUserId?: string): Promise<string[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_push_tokens')
       .select('token')
       .not('token', 'is', null);
+
+    if (excludeUserId) {
+      query = query.neq('user_id', excludeUserId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[Notifications] Erreur Supabase :', error.message);
@@ -105,15 +114,17 @@ async function sendBatchToExpoAPI(messages: PushMessage[]): Promise<void> {
 /**
  * Envoie une notification push quand une mission est créée.
  * @param missionTitle Titre de la mission créée
- * @param missionId ID optionnel de la mission (pour deep linking)
  * @param authorName Nom de l'auteur
+ * @param missionId ID optionnel de la mission (pour deep linking)
+ * @param authorUserId ID de l'utilisateur qui a créé (pour l'exclure)
  */
 export async function notifyMissionCreated(
   missionTitle: string,
   authorName: string,
-  missionId?: string
+  missionId?: string,
+  authorUserId?: string
 ): Promise<void> {
-  const tokens = await getAllPushTokens();
+  const tokens = await getAllPushTokens(authorUserId);
   if (tokens.length === 0) return;
 
   const title = `📋 Nouvelle mission`;
@@ -148,14 +159,16 @@ export async function notifyMissionCreated(
  * @param missionId ID de la mission
  * @param modifierName Nom de celui qui a modifié
  * @param changeType Type de modification (updated ou state-changed)
+ * @param modifierUserId ID de l'utilisateur qui a modifié (pour l'exclure)
  */
 export async function notifyMissionModified(
   missionTitle: string,
   missionId: string,
   modifierName: string,
-  changeType: 'updated' | 'state-changed'
+  changeType: 'updated' | 'state-changed',
+  modifierUserId?: string
 ): Promise<void> {
-  const tokens = await getAllPushTokens();
+  const tokens = await getAllPushTokens(modifierUserId);
   if (tokens.length === 0) return;
 
   const title =
@@ -195,13 +208,15 @@ export async function notifyMissionModified(
  * @param missionTitle Titre de la mission
  * @param missionId ID de la mission
  * @param authorName Nom de l'auteur du commentaire
+ * @param authorUserId ID de l'utilisateur qui a commenté (pour l'exclure)
  */
 export async function notifyCommentAdded(
   missionTitle: string,
   missionId: string,
-  authorName: string
+  authorName: string,
+  authorUserId?: string
 ): Promise<void> {
-  const tokens = await getAllPushTokens();
+  const tokens = await getAllPushTokens(authorUserId);
   if (tokens.length === 0) return;
 
   const title = `💬 Nouveau commentaire`;
@@ -229,11 +244,18 @@ export async function notifyCommentAdded(
 // 🗑️ NOTIFICATION : Suppression d'une mission
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Envoie une notification push quand une mission est supprimée.
+ * @param missionTitle Titre de la mission supprimée
+ * @param deleterName Nom de celui qui a supprimé
+ * @param deleterUserId ID de l'utilisateur qui a supprimé (pour l'exclure)
+ */
 export async function notifyMissionDeleted(
   missionTitle: string,
-  deleterName: string
+  deleterName: string,
+  deleterUserId?: string
 ): Promise<void> {
-  const tokens = await getAllPushTokens();
+  const tokens = await getAllPushTokens(deleterUserId);
   if (tokens.length === 0) return;
 
   const title = `🗑️ Mission supprimée`;
@@ -255,3 +277,62 @@ export async function notifyMissionDeleted(
 
   await sendBatchToExpoAPI(messages);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications locales (pour les tests en dev)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Envoie une notification locale (immediate, en app).
+ * Utilisé pour les tests lors du développement.
+ */
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: data || {},
+        sound: 'default',
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
+    });
+  } catch (err) {
+    console.error('[Notifications] Erreur sendLocalNotification :', err);
+    throw err;
+  }
+}
+
+/**
+ * Envoie une notification push à tous les utilisateurs.
+ * Utilisé uniquement en développement ou pour des annonces système.
+ * 
+ * @param params Paramètres de la notification (title, body, data)
+ */
+export async function sendPushNotificationToAll(params: {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<void> {
+  const tokens = await getAllPushTokens();
+  if (tokens.length === 0) {
+    console.warn('[Notifications] Aucun token disponible.');
+    return;
+  }
+
+  const messages: PushMessage[] = tokens.map((to) => ({
+    to,
+    title: params.title,
+    body: params.body,
+    data: (params.data as Record<string, string | number>) || {},
+    sound: 'default',
+    priority: 'high',
+  }));
+
+  await sendBatchToExpoAPI(messages);
+}
+

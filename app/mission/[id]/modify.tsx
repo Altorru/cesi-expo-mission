@@ -39,7 +39,7 @@ export default function ModifyMissionScreen() {
       if (user?.id) {
         const modifierUser = await fetchUserById(user.id);
         const modifierName = modifierUser?.full_name || 'Un utilisateur';
-        await notifyMissionModified(values.title, id, modifierName, 'updated');
+        await notifyMissionModified(values.title, id, modifierName, 'updated', user.id);
       }
 
       router.back();

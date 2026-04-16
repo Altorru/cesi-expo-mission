@@ -54,24 +54,45 @@ function RootLayoutNav() {
     }
   }, [session, isLoading, segments]);
 
-  // ─── Listener pour notifications entrantes (foreground et background) ────────
+  // ─── Listener pour notifications tappées (foreground et background) ────────
 
   useEffect(() => {
-    // Écouter les notifications reçues en foreground
+    // Gérer les notifications sur lesquelles l'utilisateur a cliqué
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const { notification } = response;
-        const missionId = notification.request.content.data?.missionId as string | undefined;
-
-        if (missionId) {
-          // Rediriger vers le détail de la mission
-          router.push(`/mission/${missionId}`);
-        }
+        handleNotificationNavigation(response.notification);
       }
     );
 
     return () => subscription.remove();
   }, [router]);
+
+  // ─── Gérer les notifications qui ont lancé l'app ────────────────────────
+
+  useEffect(() => {
+    // Vérifier la dernière notification qui a lancé l'app
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response?.notification) {
+        handleNotificationNavigation(response.notification);
+      }
+    });
+  }, [router]);
+
+  // ─── Fonction helper pour naviguer depuis une notification ────────────────
+
+  const handleNotificationNavigation = (notification: Notifications.Notification) => {
+    try {
+      const missionId = (notification.request.content.data?.missionId as string) || 
+                        (notification.request.content.data?.id as string);
+
+      if (missionId) {
+        router.push(`/mission/${missionId}`);
+        console.log('[RootLayout] Navigation vers mission:', missionId);
+      }
+    } catch (err) {
+      console.error('[RootLayout] Erreur navigation notification:', err);
+    }
+  };
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

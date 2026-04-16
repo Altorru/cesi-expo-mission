@@ -64,7 +64,7 @@ export function CommentInput({
       // Envoyer la notification
       const authorUser = await fetchUserById(userId);
       const authorName = authorUser?.full_name || 'Un utilisateur';
-      await notifyCommentAdded(missionTitle, courseId, authorName);
+      await notifyCommentAdded(missionTitle, courseId, authorName, userId);
       
       setText('');
     } catch (err) {

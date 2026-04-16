@@ -31,13 +31,13 @@ export default function CreateMissionScreen() {
         state:       null,
       };
 
-      await createMission(newMission);
+      const createdMissionId = await createMission(newMission);
 
       // Envoyer la notification avec le nom d'auteur enrichi
       if (user?.id) {
         const authorUser = await fetchUserById(user.id);
         const authorName = authorUser?.full_name || 'Un utilisateur';
-        await notifyMissionCreated(values.title, authorName);
+        await notifyMissionCreated(values.title, authorName, createdMissionId, user.id);
       }
 
       router.replace('/(tabs)/missions');

@@ -45,10 +45,10 @@ export function useNotificationListener() {
     // Cleanup
     return () => {
       if (notificationListenerRef.current) {
-        Notifications.removeNotificationSubscription(notificationListenerRef.current);
+        notificationListenerRef.current.remove();
       }
       if (responseListenerRef.current) {
-        Notifications.removeNotificationSubscription(responseListenerRef.current);
+        responseListenerRef.current.remove();
       }
     };
   }, [router]);

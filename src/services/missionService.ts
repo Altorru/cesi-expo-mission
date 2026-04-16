@@ -43,7 +43,14 @@ export async function deleteMission(id: string): Promise<void> {
 
 export async function createMission(
   data: MissionInput & { author?: string | null },
-): Promise<void> {
-  const { error } = await supabase.from('courses').insert(data);
+): Promise<string> {
+  const { data: insertedData, error } = await supabase
+    .from('courses')
+    .insert(data)
+    .select('id')
+    .single();
+    
   if (error) throw new Error(error.message);
+  
+  return insertedData?.id || '';
 }

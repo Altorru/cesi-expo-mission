@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } fr
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import {
-  sendMissionNotification,
-  sendMissionNotificationToAll,
-} from '@/lib/notifications';
+  sendLocalNotification,
+  sendPushNotificationToAll,
+} from '@/services/notificationService';
 import { spacing, font, getColors } from '@/styles/theme';
 
 interface MissionNotificationPanelProps {
@@ -27,11 +27,11 @@ export function MissionNotificationPanel({
   const handleSendLocal = async () => {
     setSendingLocal(true);
     try {
-      await sendMissionNotification({
-        missionId,
-        title: `📋 ${missionTitle}`,
-        body: 'Une notification locale pour cette mission.',
-      });
+      await sendLocalNotification(
+        `📋 ${missionTitle}`,
+        'Une notification locale pour cette mission.',
+        { screen: 'mission-detail', missionId }
+      );
       Alert.alert('Succès', 'Notification locale envoyée.');
     } catch (e) {
       Alert.alert('Erreur', String(e));
@@ -43,10 +43,10 @@ export function MissionNotificationPanel({
   const handleSendToAll = async () => {
     setSendingAll(true);
     try {
-      await sendMissionNotificationToAll({
-        missionId,
+      await sendPushNotificationToAll({
         title: `📋 ${missionTitle}`,
         body: 'Consultez les détails de cette mission.',
+        data: { screen: 'mission-detail', missionId },
       });
       Alert.alert('Succès', 'Notification envoyée à tous les utilisateurs.');
     } catch (e) {
