@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
+import { savePushToken } from '@/services/pushTokenService';
 import type { AuthContextType, User, Session } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -12,11 +14,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Enregistrer automatiquement le token push quand l'utilisateur est authentifié
-  usePushNotifications({ userId: user?.id, enabled: !!user });
+  // ─── Fonction privée : Enregistrer le token push après authentification ────────
+  // Appelée directement après signIn/signUp pour éviter les race conditions
+  const _registerPushTokenAfterAuth = async (userId: string): Promise<void> => {
+    try {
+      console.log('[AuthContext] 🔄 Enregistrement du token push après authentification pour:', userId);
+      
+      // 1. Demander les permissions et récupérer le token
+      const token = await registerForPushNotificationsAsync();
+      if (!token) {
+        console.log('[AuthContext] ⚠️ Aucun token obtenu (simulateur ou permission refusée).');
+        return;
+      }
 
-  // Écouter les notifications et naviguer automatiquement
-  useNotificationListener();
+      console.log('[AuthContext] ✅ Token Expo obtenu:', token.substring(0, 30) + '...');
+
+      // 2. Sauvegarder le token dans Supabase
+      await savePushToken(userId, token);
+      console.log('[AuthContext] ✅ Token push enregistré dans Supabase.');
+    } catch (err) {
+      console.warn('[AuthContext] ⚠️ Impossible d\'enregistrer le token push:', err);
+      // On ne lance pas l'erreur car l'auth réussit même sans le token
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -38,17 +60,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    console.log('[AuthContext] 🔐 Connexion avec:', email);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('[AuthContext] ❌ Erreur signIn:', error.message);
+      throw error;
+    }
+
+    // Enregistrer le token push immédiatement après la connexion réussie
+    const userId = data.user?.id;
+    if (userId) {
+      console.log('[AuthContext] ✅ Connexion réussie pour:', userId);
+      // Ne pas await : laisser s'exécuter en arrière-plan
+      _registerPushTokenAfterAuth(userId).catch((err) => 
+        console.warn('[AuthContext] ⚠️ Erreur token après signIn:', err)
+      );
+    }
   };
 
   const signUp = async (email: string, password: string, pseudo?: string) => {
-    const { error } = await supabase.auth.signUp({
+    console.log('[AuthContext] 📝 Inscription avec:', email, '- pseudo:', pseudo);
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: pseudo ? { data: { full_name: pseudo } } : undefined,
     });
-    if (error) throw error;
+    if (error) {
+      console.error('[AuthContext] ❌ Erreur signUp:', error.message);
+      throw error;
+    }
+
+    // Enregistrer le token push immédiatement après l'inscription réussie
+    // Note: En dev/auto-confirm, l'utilisateur est connecté. En prod, il peut ne pas être connecté.
+    const userId = data.user?.id;
+    if (userId) {
+      console.log('[AuthContext] ✅ Inscription réussie pour:', userId);
+      // Ne pas await : laisser s'exécuter en arrière-plan
+      _registerPushTokenAfterAuth(userId).catch((err) => 
+        console.warn('[AuthContext] ⚠️ Erreur token après signUp:', err)
+      );
+    }
   };
 
   const signOut = async () => {
