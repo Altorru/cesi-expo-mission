@@ -8,6 +8,30 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "temp-project",
+    "linking": {
+      "prefixes": ["temp-project://", "exp+cesi-missions://"],
+      "config": {
+        "screens": {
+          "(tabs)": {
+            "screens": {
+              "index": "home",
+              "missions": "missions",
+              "profil": "profil"
+            }
+          },
+          "(auth)": {
+            "screens": {
+              "login": "login",
+              "register": "register"
+            }
+          },
+          "mission/[id]/index": "mission/:id",
+          "mission/[id]/modify": "mission/:id/modify",
+          "mission/[id]/delete": "mission/:id/delete",
+          "mission/[id]/create": "mission/:id/create"
+        }
+      }
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
