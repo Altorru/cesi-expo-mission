@@ -52,8 +52,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      // Supprimer le token push avant la déconnexion
+      if (user?.id) {
+        console.log('[AuthContext] 🧹 Suppression du token push pour l\'utilisateur:', user.id);
+        const { deletePushToken } = await import('@/services/pushTokenService');
+        try {
+          await deletePushToken(user.id);
+          console.log('[AuthContext] ✅ Token push supprimé avec succès.');
+        } catch (tokenError) {
+          console.warn('[AuthContext] ⚠️ Impossible de supprimer le token push:', tokenError);
+          // On continue la déconnexion même si la suppression du token échoue
+        }
+      }
+
+      // Déconnexion
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      console.log('[AuthContext] ✅ Utilisateur déconnecté avec succès.');
+    } catch (error) {
+      console.error('[AuthContext] ❌ Erreur lors de la déconnexion :', error);
+      throw error;
+    }
   };
 
   const updatePseudo = async (newPseudo: string) => {

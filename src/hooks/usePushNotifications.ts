@@ -41,6 +41,11 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}):
   const { userId, enabled = true } = options;
   const registeredRef = useRef(false);
 
+  // Réinitialiser le flag quand l'utilisateur change
+  useEffect(() => {
+    registeredRef.current = false;
+  }, [userId]);
+
   // Effet principal : enregistrement du token
   useEffect(() => {
     if (!enabled || !userId || registeredRef.current) return;
@@ -49,25 +54,32 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}):
 
     const registerToken = async () => {
       try {
+        console.log('[usePushNotifications] 🔄 Début d\'enregistrement du token pour l\'utilisateur:', userId);
+
         // 1. Demander les permissions et récupérer le token
         const token = await registerForPushNotificationsAsync();
 
         // Si pas de token (simulateur ou permission refusée), on sort
         if (!token) {
-          console.warn('[usePushNotifications] Aucun token obtenu.');
+          console.warn('[usePushNotifications] ⚠️ Aucun token obtenu (simulateur ou permission refusée).');
           return;
         }
 
+        console.log('[usePushNotifications] ✅ Token Expo obtenu:', token.substring(0, 30) + '...');
+
         // 2. Vérifier que le composant est toujours monté
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.warn('[usePushNotifications] ⚠️ Composant démonté, abandon de l\'enregistrement.');
+          return;
+        }
 
         // 3. Sauvegarder le token dans Supabase
         await savePushTokenToSupabase(userId, token);
-        console.log('[usePushNotifications] Token enregistré avec succès :', token);
+        console.log('[usePushNotifications] ✅ Token sauvegardé dans Supabase pour l\'utilisateur:', userId);
 
         registeredRef.current = true;
       } catch (error) {
-        console.error('[usePushNotifications] Erreur lors de l\'enregistrement :', error);
+        console.error('[usePushNotifications] ❌ Erreur lors de l\'enregistrement :', error);
       }
     };
 

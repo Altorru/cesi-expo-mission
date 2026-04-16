@@ -74,6 +74,8 @@ export async function getPushToken(userId: string): Promise<string | null> {
  * @throws {Error} Si la suppression échoue
  */
 export async function deletePushToken(userId: string): Promise<void> {
+  console.log('[PushTokenService] Suppression du token pour l\'utilisateur:', userId);
+
   const { error } = await supabase
     .from('user_push_tokens')
     .delete()
@@ -82,6 +84,8 @@ export async function deletePushToken(userId: string): Promise<void> {
   if (error) {
     throw new Error(`[PushTokenService] Échec de la suppression du token : ${error.message}`);
   }
+
+  console.log('[PushTokenService] ✅ Token supprimé avec succès.');
 }
 
 /**
