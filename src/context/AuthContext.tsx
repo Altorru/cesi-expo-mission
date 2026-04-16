@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationListener } from '@/hooks/useNotificationListener';
 import type { AuthContextType, User, Session } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -13,6 +14,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Enregistrer automatiquement le token push quand l'utilisateur est authentifié
   usePushNotifications({ userId: user?.id, enabled: !!user });
+
+  // Écouter les notifications et naviguer automatiquement
+  useNotificationListener();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

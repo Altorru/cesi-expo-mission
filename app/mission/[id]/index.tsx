@@ -28,8 +28,9 @@ import { useComments } from '@/hooks/useComments';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { fetchUserPseudos } from '@/services/userService';
+import { fetchUserPseudos, fetchUserById } from '@/services/userService';
 import { updateMissionState } from '@/services/missionService';
+import { notifyMissionModified } from '@/services/notificationService';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 import type { MissionState } from '@/types/mission';
 
@@ -86,6 +87,13 @@ export default function MissionDetailScreen() {
     try {
       await updateMissionState(id, newState);
       await refetch();
+
+      // Envoyer la notification
+      if (user?.id) {
+        const modifierUser = await fetchUserById(user.id);
+        const modifierName = modifierUser?.full_name || 'Un utilisateur';
+        await notifyMissionModified(mission.title, id, modifierName, 'state-changed');
+      }
     } catch (err) {
       console.error('Erreur changement état:', err);
     } finally {
@@ -267,6 +275,7 @@ export default function MissionDetailScreen() {
           <CommentInput
             courseId={mission!.id}
             userId={user?.id || ''}
+            missionTitle={mission!.title}
             onCommentAdded={(comment) => {
               addCommentOptimistic(comment);
               setCommentError(null);

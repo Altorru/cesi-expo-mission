@@ -4,6 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMissionOnce } from '@/hooks/useMissions';
 import { updateMission } from '@/services/missionService';
+import { notifyMissionModified } from '@/services/notificationService';
+import { fetchUserById } from '@/services/userService';
+import { useAuth } from '@/context/AuthContext';
 import type { PriorityLevel } from '@/types/mission';
 import { colors } from '@/styles/theme';
 import MissionForm, { type MissionFormValues } from '@/components/features/MissionForm';
@@ -13,6 +16,7 @@ import MissionForm, { type MissionFormValues } from '@/components/features/Missi
 export default function ModifyMissionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const { mission, isLoading } = useMissionOnce(id);
 
   const [saving, setSaving]   = React.useState(false);
@@ -30,6 +34,14 @@ export default function ModifyMissionScreen() {
         priority:    (values.priority as PriorityLevel) || null,
         in_charge:   values.in_charge,
       });
+
+      // Envoyer la notification avec le nom du modifiant
+      if (user?.id) {
+        const modifierUser = await fetchUserById(user.id);
+        const modifierName = modifierUser?.full_name || 'Un utilisateur';
+        await notifyMissionModified(values.title, id, modifierName, 'updated');
+      }
+
       router.back();
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : 'Erreur inconnue');

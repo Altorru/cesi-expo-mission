@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createComment } from '@/services/commentService';
+import { notifyCommentAdded } from '@/services/notificationService';
+import { fetchUserById } from '@/services/userService';
 import { useTheme } from '@/context/ThemeContext';
 import { getColors, spacing, radius, font } from '@/styles/theme';
 import type { Comment } from '@/types/mission';
@@ -18,6 +20,7 @@ import type { Comment } from '@/types/mission';
 interface CommentInputProps {
   courseId: string;
   userId: string;
+  missionTitle: string;
   onCommentAdded: (comment: Comment) => void;
   onError?: (error: string) => void;
   disabled?: boolean;
@@ -26,6 +29,7 @@ interface CommentInputProps {
 export function CommentInput({
   courseId,
   userId,
+  missionTitle,
   onCommentAdded,
   onError,
   disabled = false,
@@ -58,6 +62,11 @@ export function CommentInput({
         ...comment,
         author_name: 'Vous',
       });
+
+      // Envoyer la notification
+      const authorUser = await fetchUserById(userId);
+      const authorName = authorUser?.full_name || 'Un utilisateur';
+      await notifyCommentAdded(missionTitle, courseId, authorName);
       
       setText('');
     } catch (err) {
